@@ -60,7 +60,7 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Beta_min=0.2,Beta_max=1.2,Omega_min=0.
    
 
     time=0.125
-    Probability=0.3
+    Probability=0.7
     i=0
 
    
@@ -89,15 +89,17 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Beta_min=0.2,Beta_max=1.2,Omega_min=0.
           Graph.nodes[each]['opinion']='supporting'
           OpinionSupporting+=1
         i+=1
+    
     #------------------------------
     Statistical.append({'NonInfected':Nbr_nonInfected,'Infected':Nbr_Infected,'Spreaders':Nbr_Spreaders,'OpinionDenying':OpinionDenying,'OpinionSupporting':OpinionSupporting,'RumorPopularity':RumorPopularity,'graph':Graph})
     #----------------------
+    #if the list is empty we stop the propagation
     while ListInfectedNodes: 
       RumorPopularity = 0
       Nbr_Spreaders = 0
-      X=0
-
-      for X in range(len(ListInfectedNodes)):
+      new_active=list()
+      for X in range(len(ListInfectedNodes)-1):
+        
         id = ListInfectedNodes[X]
         #relative time of rumor spreading
         RelativeTime = time - Graph.nodes[id]['Infetime'] 
@@ -121,7 +123,7 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Beta_min=0.2,Beta_max=1.2,Omega_min=0.
                 #Sending Rumor
                 for each in new_ones:
                     #Accepted Rumor Probability 
-                    AccepR = Graph.nodes[id]['degre']/ (Graph.nodes[id]['degre'] + Graph.nodes[each]['degre'])
+                    AccepR = Graph.nodes[id]['degre']/ (Graph.nodes[id]['degre'] + Graph.nodes[each]['degre'])*0.5
                     if (np.random.random_sample()<=AccepR):
                         Graph.nodes[each]['AccpR']+=1
 
@@ -129,26 +131,37 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Beta_min=0.2,Beta_max=1.2,Omega_min=0.
                             Graph.nodes[each]['Infetime'] =time
                             Graph.nodes[each]['opinion'] =Graph.nodes[id]['opinion']
                             Graph.nodes[id]['state']='spreaders'
-                            ListInfectedNodes.append(each)
+                            new_active.append(each)
                             if (Graph.nodes[each]['opinion']=="denying"):
+                                #negativ opinion
                                 Graph.nodes[each]['Accp_NegR']+=1
                                 OpinionDenying+=1
                             else:
                                  OpinionSupporting+=1
                         elif (Graph.nodes[each]['opinion']=="denying"):
                             Graph.nodes[each]['Accp_NegR']+=1
+                        
                         #updateOpinion(id)
-
-        time += 0.125;                      
-     
-      
-      Statistical.append({'NonInfected':Nbr_nonInfected,'Infected':Nbr_Infected,'Spreaders':Nbr_Spreaders,'OpinionDenying':OpinionDenying,'OpinionSupporting':OpinionSupporting,'RumorPopularity':RumorPopularity,'graph':Graph})
+                if (Graph.nodes[id]['opinion']=="denying"):
+                    OpinionDenying-=1
+                else:
+                    OpinionSupporting-=1
+                Graph.nodes[id]['opinion']= updateOpinion(jug=Graph.nodes[id]['jug'],Accpet_NegR=Graph.nodes[id]['Accp_NegR'],Nbr_OF_R=Graph.nodes[id]['AccpR'])
+                if (Graph.nodes[id]['opinion']=="denying"):
+                    OpinionDenying+=1
+                else:
+                    OpinionSupporting+=1       
+      ListInfectedNodes.append(new_active)
+      #save each step to send it to viewing later
+      Statistical.append({'NonInfected':Nbr_nonInfected,'Infected':Nbr_Infected,'Spreaders':Nbr_Spreaders,'OpinionDenying':OpinionDenying,'OpinionSupporting':OpinionSupporting,'RumorPopularity':RumorPopularity,'graph':0})
       time += 0.125;
     
+    for s in Statistical:
+         print (s) 
     
-    for node in Graph.nodes:
-       print (Graph.nodes[node]) 
-    return None
+    
+    
+  
     
 def InitParameters(Graph,Beta_min,Beta_max,Omega_min,Omega_max,Delta_min,Delta_max,Jug_min,Jug_max):
     #Individual back ground knowledge:Beta
@@ -170,6 +183,13 @@ def Inclusive(min,max):
   min = np.ceil(min)
   max = np.floor(max)
   return (np.floor(np.random.random_sample()*(max - min + 1)) + min)/100
+
+def updateOpinion(jug,Accpet_NegR,Nbr_OF_R):
+    opinion=(jug + (Accpet_NegR / Nbr_OF_R)) * 0.5;
+    if(np.random.random_sample()<= opinion):
+        return 'denying'
+    else:
+        return 'supporting'
 
 def Small_World_networks(N=300,K=10,P=0.3):
     
@@ -195,22 +215,9 @@ def graphe_TO_json(g):
     return data
 
 g=json_graph.node_link_graph(Small_World_networks(100))
-#HISBmodel(g,[1,2,3,8,12],['supporting','supporting','denying','denying','supporting'])
+HISBmodel(g,[1,2,3,8,12],['supporting','supporting','denying','denying','supporting'])
 #print(Inclusive(0.2,6.2))
-s=[{'s':50,'i':0}]
-x=[1,2,5]
-x.pop(1)
-new_active=list()
-statique={'s':0,'i':0}
-new_active.append(statique)
-new_active.append(s)
-a=0
-a+=1
-a+=5
-new_active.append({'s':a,'i':0})
-a+=6
-new_active.append({'s':a,'i':0})
-if x:
- print(x)
+#s=[{'s':50,'i':0}]
 
-print(np.abs(-90))
+
+
