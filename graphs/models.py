@@ -63,8 +63,8 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Beta_min=0.2,Beta_max=1.2,Omega_min=0.
     #Initialis Parameters----------------------------
     #-------------------------
     Nbr_Spreaders=len(ListInfectedNodes)
-    Nbr_nonInfected=len(Graph.nodes)
-    Nbr_Infected=0
+    Nbr_nonInfected=len(Graph.nodes)-Nbr_Spreaders
+    Nbr_Infected=Nbr_Spreaders
     OpinionDenying=0
     OpinionSupporting=0
     RumorPopularity=0
@@ -104,8 +104,8 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Beta_min=0.2,Beta_max=1.2,Omega_min=0.
         if (np.exp(-RelativeTime * Graph.nodes[id]['beta']) < 0.1) :
           ListInfectedNodes.pop(X);
           Graph.nodes[id]['state'] = "infected"
-          Nbr_Infected+=1
-          Nbr_nonInfected-=1
+         
+         
         else:
             #atrraction of nodes
             ActualAttraction = np.exp(-RelativeTime * Graph.nodes[id]['beta']) * np.abs(np.sin(RelativeTime * Graph.nodes[id]['omega'] + Graph.nodes[id]['delta']))
@@ -126,6 +126,8 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Beta_min=0.2,Beta_max=1.2,Omega_min=0.
                         Graph.nodes[each]['AccpR']+=1
 
                         if (Graph.nodes[each]['Infetime']==0 ):
+                            Nbr_Infected+=1
+                            Nbr_nonInfected-=1
                             Graph.nodes[each]['Infetime'] =time
                             Graph.nodes[each]['opinion'] =Graph.nodes[id]['opinion']
                             Graph.nodes[id]['state']='spreaders'
