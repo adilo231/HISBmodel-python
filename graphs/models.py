@@ -263,7 +263,7 @@ def Start(Graph):
     fig, (ax1, ax2) = plt.subplots(2, 1)
     fig.suptitle('Iteration X')
 
-    ax1.plot(x1, y1, 'o-')
+    ax1.plot(x1, y1, '.-')
     ax1.set_ylabel('Infected')
 
     ax2.plot(x1, y2, '.-')
