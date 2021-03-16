@@ -1,6 +1,7 @@
 import numpy as np
 from networkx.readwrite import json_graph
 import networkx as nx
+import matplotlib.pyplot as plt
 
 def IC(Networkx_Graph,Seed_Set,Probability):
     spread = []
@@ -50,15 +51,15 @@ def Neighbour_finder(g,new_active):
     return(targets)
 
 
-def HISBmodel (Graph,Seed_Set,Opinion_Set,Beta_min=0.2,Beta_max=1.2,Omega_min=0.1,Omega_max=6,Delta_min=0.2,Delta_max=1.6,Jug_min=0.1,Jug_max=1):
+def HISBmodel (Graph,Seed_Set,Statistical,Opinion_Set,Beta_min=0.2 ,Beta_max=1.4,Omega_min=0.1,Omega_max=6,Delta_min=0.2,Delta_max=1.6,Jug_min=0.1,Jug_max=1):
     #Opinion:normal/denying/supporting
     #State:non_infected/infected/spreaders 
     #Statistical:{'NonInfected':NbrOFnodes,'Infected':**,'Spreaders':**,OpinionDenying':**,'OpinionSupporting':**,'RumorPopularity':**}
-    Statistical=[]
+    
     ListInfectedNodes=Seed_Set[:]
     Opinion_Set=Opinion_Set[:]
     time=0.125
-    Probability=0.7
+    Probability=0.2
     i=0
     #Initialis Parameters----------------------------
     #-------------------------
@@ -66,7 +67,7 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Beta_min=0.2,Beta_max=1.2,Omega_min=0.
 
     Nbr_nonInfected=len(Graph.nodes)
 
-    Nbr_Infected=Nbr_Spreaders
+    Nbr_Infected=0
     OpinionDenying=0
     OpinionSupporting=0
     RumorPopularity=0
@@ -77,6 +78,7 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Beta_min=0.2,Beta_max=1.2,Omega_min=0.
         Graph.nodes[each]['state']='spreaders'
         Graph.nodes[each]['AccpR']+=1
         RumorPopularity+=Graph.nodes[each]['degre']
+        Nbr_Infected+=1
         if (Opinion_Set[i]=="denying"):
             Graph.nodes[each]['opinion']='denying'
             Graph.nodes[each]['Accp_NegR']+=1
@@ -90,26 +92,25 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Beta_min=0.2,Beta_max=1.2,Omega_min=0.
     Statistical.append({'NonInfected':Nbr_nonInfected,'Infected':Nbr_Infected,'Spreaders':Nbr_Spreaders,'OpinionDenying':OpinionDenying,'OpinionSupporting':OpinionSupporting,'RumorPopularity':RumorPopularity,'graph':Graph})
     #----------------------
     #if the list is empty we stop the propagation
-    z=0
+    
     while ListInfectedNodes: 
       RumorPopularity = 0
       Nbr_Spreaders = 0
       L=len(ListInfectedNodes)
-      print(Statistical[z])
-      z+=1
+      
       for X in reversed(range(0,L)):
         
         id = ListInfectedNodes[X]
         
         #relative time of rumor spreading
         RelativeTime = time - Graph.nodes[id]['Infetime'] 
-        if (np.exp(-RelativeTime * Graph.nodes[id]['beta']) < 0.1) :
+        if (np.exp(-RelativeTime * Graph.nodes[id]['beta']) < 0.2) :
           ListInfectedNodes.pop(X)
           Graph.nodes[id]['state'] = "infected"
 
         else:
             #atrraction of nodes
-            ActualAttraction = np.exp(-RelativeTime * Graph.nodes[id]['beta']) * np.abs(np.sin(RelativeTime * Graph.nodes[id]['omega'] + Graph.nodes[id]['delta']))
+            ActualAttraction = np.exp(-RelativeTime * Graph.nodes[id]['beta']) * np.abs(np.sin((RelativeTime * Graph.nodes[id]['omega'] )+ Graph.nodes[id]['delta']))
             
             RumorPopularity += ActualAttraction * Graph.nodes[id]['degre']
             #rumor spreading
@@ -122,7 +123,7 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Beta_min=0.2,Beta_max=1.2,Omega_min=0.
                 #Sending Rumor
                 for each in new_ones:
                     #Accepted Rumor Probability 
-                    AccepR = Graph.nodes[id]['degre']/ (Graph.nodes[id]['degre'] + Graph.nodes[each]['degre'])*0.5
+                    AccepR = Graph.nodes[id]['degre']/ (Graph.nodes[id]['degre'] + Graph.nodes[each]['degre'])*0.3
                     if (np.random.random_sample()<=AccepR):
                         Graph.nodes[each]['AccpR']+=1
 
@@ -179,9 +180,10 @@ def InitParameters(Graph,Beta_min,Beta_max,Omega_min,Omega_max,Delta_min,Delta_m
     return g
 
 def Inclusive(min,max):
-  min = np.ceil(min)
-  max = np.floor(max)
-  return (np.floor(np.random.random_sample()*(max - min + 1)) + min)/100
+   
+   b= ((np.random.random_sample()*(max - min )) + min)
+    
+   return b
 
 def updateOpinion(jug,Accpet_NegR,Nbr_OF_R):
     opinion=jug*(Accpet_NegR / Nbr_OF_R);
@@ -212,9 +214,27 @@ def graphe_TO_json(g):
     data['nodes'] = [ {"id": i,"state":"non_infected","opinion":"normal","beta":0,"omega":0,"delta":0,"jug":0,"Infetime":0,"AccpR":0,"SendR":0,"Accp_NegR":0,"value":0,"infected":'false',"degre":g.degree[i],"neighbors":[n for n in g.neighbors(i)]} for i in range(len(data['nodes'])) ]
     data['links'] = [ {"source":u,"target":v,"weight":(g.degree[u]+g.degree[v])/2} for u,v in g.edges ]
     return data
+Statistical=[]
+g=json_graph.node_link_graph(Small_World_networks(100000))
+HISBmodel(g,[1,2,3,8,12],Statistical,['supporting','supporting','denying','denying','supporting'])
+y1=[]
+y2=[]
+for i in range(0,len(Statistical)):
+    y1.append(Statistical[i]['Infected'])
+    y2.append(Statistical[i]['Spreaders'])
 
-g=json_graph.node_link_graph(Small_World_networks(100))
-HISBmodel(g,[1,2,3,8,12],['supporting','supporting','denying','denying','supporting'])
-#print(Inclusive(0.2,6.2))
-#s=[{'s':50,'i':0}]
+x1 = range(0,len(Statistical))
 
+
+
+fig, (ax1, ax2) = plt.subplots(2, 1)
+fig.suptitle('A tale of 2 subplots')
+
+ax1.plot(x1, y1, 'o-')
+ax1.set_ylabel('Damped oscillation')
+
+ax2.plot(x1, y2, '.-')
+ax2.set_xlabel('time (s)')
+ax2.set_ylabel('Undamped')
+
+plt.show()   
