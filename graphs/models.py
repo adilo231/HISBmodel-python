@@ -54,8 +54,8 @@ def Neighbour_finder(g,new_active):
         targets += g.neighbors(node)
     return(targets)
 
-
 def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramaters):
+
     #Opinion:normal/denying/supporting
     #State:non_infected/infected/spreaders 
     #Statistical:{'NonInfected':NbrOFnodes,'Infected':**,'Spreaders':**,OpinionDenying':**,'OpinionSupporting':**,'RumorPopularity':**}
@@ -83,8 +83,10 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramaters):
         Graph.nodes[each]['AccpR']+=1
         RumorPopularity+=Graph.nodes[each]['degre']
         Nbr_Infected+=1
+
         Nbr_nonInfected-=1
         if (Opinion_Set[i]=='denying'):
+
             Graph.nodes[each]['opinion']='denying'
             Graph.nodes[each]['Accp_NegR']+=1
             OpinionDenying+=1
@@ -135,7 +137,9 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramaters):
 
                         if (Graph.nodes[each]['Infetime']==0 ):
                             Nbr_Infected+=1
-                            Nbr_nonInfected-=1
+
+
+
                             Graph.nodes[each]['Infetime'] =time
                             Graph.nodes[each]['opinion'] =Graph.nodes[id]['opinion']
                             Graph.nodes[id]['state']='spreaders'
