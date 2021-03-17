@@ -55,7 +55,7 @@ def Neighbour_finder(g,new_active):
     return(targets)
 
 def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramaters):
-
+    print(g.number_of_nodes())
     #Opinion:normal/denying/supporting
     #State:non_infected/infected/spreaders 
     #Statistical:{'NonInfected':NbrOFnodes,'Infected':**,'Spreaders':**,OpinionDenying':**,'OpinionSupporting':**,'RumorPopularity':**}
@@ -63,7 +63,7 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramaters):
     ListInfectedNodes=Seed_Set[:]
     Opinion_Set=Opinion_Set[:]
     time=0.125
-    Probability=0.2
+    Probability=0.15
     i=0
     #Initialis Parameters----------------------------
     #-------------------------
@@ -233,8 +233,10 @@ def geneList_Infectede(Listinfected,Listopinion,N,percentage):
 
 
 def parameters(parameter):
-    Beta_min= round(random.uniform(0.1, 6.0), 1)
-    Beta_max=Beta_min+ round(random.uniform(0.0, 4.0), 1)
+    Beta_min= round(random.uniform(0.1, 0.2), 1)
+    Beta_max=Beta_min+ round(random.uniform(0.4, 0.8), 1)
+    print(Beta_min)
+    print(Beta_max)
     Omega_min= round(random.uniform(0.1, 6.0), 1)
     Omega_max=Omega_min+round(random.uniform(0.0, 4.0), 1)
     Delta_min= round(random.uniform(0.1, 6.0), 1)
@@ -248,7 +250,8 @@ def Start(Graph):
     ListInfected=[]
     Listopinion=[]
     #X% of Popularity is infected 
-    geneList_Infectede(ListInfected,Listopinion,len(Graph.nodes),5)
+    geneList_Infectede(ListInfected,Listopinion,len(Graph.nodes),2)
+    print("Nbr infected",len(ListInfected))
     parameters(parameter)
     HISBmodel(Graph,ListInfected,Listopinion,Statistical,parameter)
     y1=[]
@@ -274,29 +277,29 @@ def Start(Graph):
     ax2.set_xlabel('time (s)')
     ax2.set_ylabel('Sprreaders')
     
-    fig2, (ax3,ax4) = plt.subplots(2, 1)
-    fig2.suptitle('Iteration X')
-    ax3.plot(x1, y3, '.-')
-    ax3.set_xlabel('time (s)')
-    ax3.set_ylabel('RumorPopularity')
+    # fig2, (ax3,ax4) = plt.subplots(2, 1)
+    # fig2.suptitle('Iteration X')
+    # ax3.plot(x1, y3, '.-')
+    # ax3.set_xlabel('time (s)')
+    # ax3.set_ylabel('RumorPopularity')
 
-    ax4.plot(x1, y4, 'r-',x1,y5,'g--')
-    ax4.set_xlabel('time (s)')
-    ax4.set_ylabel('OpinionDenying')
+    # ax4.plot(x1, y4, 'r-',x1,y5,'g--')
+    # ax4.set_xlabel('time (s)')
+    # ax4.set_ylabel('OpinionDenying')
 
     plt.show()   
-
-#Number of nodes
-N=500
-#gene graph
-g=json_graph.node_link_graph(Small_World_networks(N))
-
-
-    
-NUM_WORKERS = 4
-start_time = time.time()
-processes = [multiprocessing.Process(target=Start(Graph=g)) for _ in range(NUM_WORKERS)]
-[process.start() for process in processes]
-[process.join() for process in processes]
-end_time = time.time() 
-print("Parallel time=", end_time - start_time)
+if __name__ == '__main__':
+    #Number of nodes
+    N=500
+    #gene graph
+    g=json_graph.node_link_graph(Small_World_networks(N))
+    print(g.number_of_nodes())
+    Start(Graph=g)
+        
+    # NUM_WORKERS = 4
+    # start_time = time.time()
+    # processes = [multiprocessing.Process(target=Start(Graph=g)) for _ in range(NUM_WORKERS)]
+    # [process.start() for process in processes]
+    # [process.join() for process in processes]
+    # end_time = time.time() 
+    # print("Parallel time=", end_time - start_time)
