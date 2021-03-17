@@ -352,7 +352,7 @@ def Display(Stat,parameter,NUM_WORKERS,N):
 
 if __name__ == '__main__':
     #Number of nodes
-    N=10000
+    N=100000
     #gene graph
     g=json_graph.node_link_graph(Small_World_networks(N))
     percentage=1 #1% of popularity" is infected 
