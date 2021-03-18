@@ -65,7 +65,7 @@ def HISBmodel (g,Seed_Set,Opinion_Set,Statistical,paramater):
     ListInfectedNodes=Seed_Set[:]
     Opinion_Set=Opinion_Set[:]
     time=0.125
-    Probability=0.3
+    Probability=0.2
     i=0
     #Initialis Parameters----------------------------
     #-------------------------
@@ -114,7 +114,7 @@ def HISBmodel (g,Seed_Set,Opinion_Set,Statistical,paramater):
         
         #relative time of rumor spreading
         RelativeTime = time - Graph.nodes[id]['Infetime'] 
-        if (np.exp(-RelativeTime * Graph.nodes[id]['beta']) < 0.05) :
+        if (np.exp(-RelativeTime * Graph.nodes[id]['beta']) < 0.15) :
           ListInfectedNodes.pop(X)
           Graph.nodes[id]['state'] = "infected"
           
@@ -139,7 +139,7 @@ def HISBmodel (g,Seed_Set,Opinion_Set,Statistical,paramater):
                 #Sending Rumor
                 for each in new_ones:
                     #Accepted Rumor Probability 
-                    AccepR = Graph.nodes[id]['degre']/ (Graph.nodes[id]['degre'] + Graph.nodes[each]['degre'])*0.3
+                    AccepR = Graph.nodes[id]['degre']/ (Graph.nodes[id]['degre'] + Graph.nodes[each]['degre'])*0.25
                     if (np.random.random_sample()<=AccepR):
                         Graph.nodes[each]['AccpR']+=1
 
@@ -202,7 +202,7 @@ def Inclusive(min,max):
    return b
 
 def updateOpinion(jug,Accpet_NegR,Nbr_OF_R): 
-    print(jug ,Accpet_NegR ,Nbr_OF_R)
+   
    
     opinion=jug*(Accpet_NegR / Nbr_OF_R)
     if(np.random.random_sample()<= opinion):
@@ -393,7 +393,7 @@ def Display(S,parameter,NUM_WORKERS,N):
 
     #Number of nodes
 if __name__ == '__main__':
-    N=1000
+    N=10000
     #gene graph
     g=json_graph.node_link_graph(Small_World_networks(N))
     NUM_WORKERS=10
