@@ -4,8 +4,11 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import random
 import os
+import time
 from matplotlib.ticker import NullFormatter  
-import multiprocessing
+import multiprocessing 
+from multiprocessing import Manager
+
 def IC(Networkx_Graph,Seed_Set,Probability):
     spread = []
     new_active, Ans = Seed_Set[:], Seed_Set[:]
@@ -53,8 +56,8 @@ def Neighbour_finder(g,new_active):
         targets += g.neighbors(node)
     return(targets)
 
-def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramaters):
-    print(g.number_of_nodes())
+def HISBmodel (g,Seed_Set,Opinion_Set,Statistical,paramater):
+    Graph=g
     #Opinion:normal/denying/supporting
     #State:non_infected/infected/spreaders 
     #Statistical:{'NonInfected':NbrOFnodes,'Infected':**,'Spreaders':**,OpinionDenying':**,'OpinionSupporting':**,'RumorPopularity':**}
@@ -62,7 +65,7 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramaters):
     ListInfectedNodes=Seed_Set[:]
     Opinion_Set=Opinion_Set[:]
     time=0.125
-    Probability=0.15
+    Probability=0.3
     i=0
     #Initialis Parameters----------------------------
     #-------------------------
@@ -74,12 +77,13 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramaters):
     OpinionDenying=0
     OpinionSupporting=0
     RumorPopularity=0
-    InitParameters(Graph,paramaters)
+    InitParameters(Graph,paramater)
    
     for each  in ListInfectedNodes:
         Graph.nodes[each]['Infetime']=0.125 
         Graph.nodes[each]['state']='spreaders'
         Graph.nodes[each]['AccpR']+=1
+        
         RumorPopularity+=Graph.nodes[each]['degre']
         Nbr_Infected+=1
         Nbr_nonInfected-=1
@@ -93,11 +97,12 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramaters):
           OpinionSupporting+=1
         i+=1
         
+    
     #------------------------------
     Statistical.append({'NonInfected':Nbr_nonInfected,'Infected':Nbr_Infected,'Spreaders':Nbr_Spreaders,'OpinionDenying':OpinionDenying,'OpinionSupporting':OpinionSupporting,'RumorPopularity':RumorPopularity,'graph':0})
     #----------------------
     #if the list is empty we stop the propagation
-    
+    x=0
     while ListInfectedNodes: 
       RumorPopularity = 0
       Nbr_Spreaders = 0
@@ -109,9 +114,11 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramaters):
         
         #relative time of rumor spreading
         RelativeTime = time - Graph.nodes[id]['Infetime'] 
-        if (np.exp(-RelativeTime * Graph.nodes[id]['beta']) < 0.2) :
+        if (np.exp(-RelativeTime * Graph.nodes[id]['beta']) < 0.05) :
           ListInfectedNodes.pop(X)
           Graph.nodes[id]['state'] = "infected"
+          
+              
 
         else:
             #atrraction of nodes
@@ -119,7 +126,10 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramaters):
             
             RumorPopularity += ActualAttraction * Graph.nodes[id]['degre']
             #rumor spreading
-            if (np.random.random_sample()<=ActualAttraction):
+            
+            c=np.random.random_sample()
+            
+            if (c<=ActualAttraction):
                 Nbr_Spreaders+=1
                
                 #Calculating if any nodes of those neighbours can be activated, if yes add them to new_ones.
@@ -148,7 +158,7 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramaters):
                                 OpinionDenying+=1
                             else:
                                  OpinionSupporting+=1
-                        elif (Graph.nodes[each]['opinion']=="denying"):
+                        elif (Graph.nodes[id]['opinion']=="denying"):
                             Graph.nodes[each]['Accp_NegR']+=1
                         
                         #updateOpinion(id)
@@ -165,10 +175,13 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramaters):
       #save each step to send it to viewing later
       Statistical.append({'NonInfected':Nbr_nonInfected,'Infected':Nbr_Infected,'Spreaders':Nbr_Spreaders,'OpinionDenying':OpinionDenying,'OpinionSupporting':OpinionSupporting,'RumorPopularity':RumorPopularity,'graph':0})
       time += 0.125;
+    x=0   
+    y=0
+    for g in range(len(Graph.nodes)):
+        x+=Graph.nodes[g]['Accp_NegR']
+        y+=Graph.nodes[g]['AccpR']
     
-    
-     
-    
+   
 def InitParameters(Graph,parameters):
     #Individual back ground knowledge:Beta
     #Forgetting and remembering factore:Omega
@@ -188,8 +201,10 @@ def Inclusive(min,max):
     
    return b
 
-def updateOpinion(jug,Accpet_NegR,Nbr_OF_R):
-    opinion=jug*(Accpet_NegR / Nbr_OF_R);
+def updateOpinion(jug,Accpet_NegR,Nbr_OF_R): 
+    print(jug ,Accpet_NegR ,Nbr_OF_R)
+   
+    opinion=jug*(Accpet_NegR / Nbr_OF_R)
     if(np.random.random_sample()<= opinion):
         return 'denying'
     else:
@@ -231,44 +246,67 @@ def geneList_Infectede(Listinfected,Listopinion,N,percentage):
 
 
 def parameters(parameter):
-    Beta_min= round(random.uniform(0.1, 6.0),2)
-    Beta_max=Beta_min+ round(random.uniform(0.0, 4.0),2)
+    Beta_min= round(random.uniform(0.1, 0.15),2)
+    Beta_max=Beta_min+ round(random.uniform(0.0, 1.0),2)
     Omega_min= round(random.uniform(0.1, 6.0), 2)
     Omega_max=Omega_min+round(random.uniform(0.0, 4.0),2)
-    Delta_min= round(random.uniform(0.1, 6.0), 2)
-    Delta_max=Delta_min+ round(random.uniform(0.0, 4.0),2)
-    Jug_min=round(random.uniform(0.1, 6.0), 2)
-    Jug_max=Jug_min+ round(random.uniform(0.0, 4.0),2)
-    parameter.append({'Beta_min':Beta_min,'Beta_max':Beta_max,'Omega_min':Omega_min,'Omega_max':Omega_max,'Delta_min':Delta_min,'Delta_max':Delta_max,'Jug_min':Jug_min,'Jug_max':Jug_max})
+    Delta_min= round(random.uniform(0.1, 0.20), 2)
+    Delta_max=Delta_min+ round(random.uniform(0.2, 1.30),2)
+    Jug_min=round(random.uniform(0.1, 0.3), 2)
+    Jug_max=Jug_min+ round(random.uniform(0.2, 0.7),2)
+    parameter.append({'Beta_min':0.1,'Beta_max':1.2,'Omega_min':0.1,'Omega_max':6,'Delta_min':0.1,'Delta_max':1.6,'Jug_min':0.8,'Jug_max':1})
 
 
 def Start(Graph,parameter,Stat,percentage):
-    G=Graph
+    for each in range(len(Graph.nodes)):
+        Graph.nodes[each]['id']=each
+        Graph.nodes[each]['opinion']="normal"
+        Graph.nodes[each]['beta']=0
+        Graph.nodes[each]['omega']=0
+        Graph.nodes[each]['delta']=0
+        Graph.nodes[each]['jug']=0
+        Graph.nodes[each]['AccpR']=0
+        Graph.nodes[each]['SendR']=0
+        Graph.nodes[each]['Accp_NegR']=0
+        Graph.nodes[each]['value']=0
+        Graph.nodes[each]['infected']='false'
+        Graph.nodes[each]['degre']=Graph.degree[each]
+        Graph.nodes[each]['neighbors']=[n for n in Graph.neighbors(each)]
+
+        Graph.nodes[each]['Infetime']=0 
+        Graph.nodes[each]['state']='non_infected'
+    
     Statistical=[]
     ListInfected=[]
     Listopinion=[]
     #X% of Popularity is infected 
     geneList_Infectede(ListInfected,Listopinion,len(Graph.nodes),percentage)  
-    HISBmodel(G,ListInfected,Listopinion,Statistical,parameter)  
+    HISBmodel(Graph,ListInfected,Listopinion,Statistical,parameter)  
     Stat.append(Statistical)
+    print(len(Stat))
    
-def Display(Stat,parameter,NUM_WORKERS,N):
+def Display(S,parameter,NUM_WORKERS,N):
     max=0
-    for each in Stat:
+    Stat=[]
+    
+    for each in S:
+        
         L=len(each)
+        Stat.append(each)
         if(L>max):
             max=L
-    for each in Stat:
-        L=len(each)
-        Nbr_nonInfected=each[L-1]['Infected']
-        Nbr_Infected=each[L-1]['Infected']
-        Nbr_Spreaders=each[L-1]['Spreaders']
-        OpinionDenying=each[L-1]['OpinionDenying']
-        OpinionSupporting=each[L-1]['OpinionSupporting']
-        RumorPopularity=each[L-1]['RumorPopularity']
-        for i in range(L,max):
-            each.append({'NonInfected':Nbr_nonInfected,'Infected':Nbr_Infected,'Spreaders':Nbr_Spreaders,'OpinionDenying':OpinionDenying,'OpinionSupporting':OpinionSupporting,'RumorPopularity':RumorPopularity,'graph':0})   
-    
+    for i in range(len(Stat)):
+        L=len(Stat[i])
+        Nbr_nonInfected=Stat[i][L-1]['Infected']
+        Nbr_Infected=Stat[i][L-1]['Infected']
+        Nbr_Spreaders=Stat[i][L-1]['Spreaders']
+        OpinionDenying=Stat[i][L-1]['OpinionDenying']
+        OpinionSupporting=Stat[i][L-1]['OpinionSupporting']
+        RumorPopularity=Stat[i][L-1]['RumorPopularity']
+        for j in range(L,max):
+            Stat[i].append({'NonInfected':Nbr_nonInfected,'Infected':Nbr_Infected,'Spreaders':Nbr_Spreaders,'OpinionDenying':OpinionDenying,'OpinionSupporting':OpinionSupporting,'RumorPopularity':RumorPopularity,'graph':0})   
+     
+
     y1=[]
     y2=[]
     y3=[]
@@ -276,6 +314,7 @@ def Display(Stat,parameter,NUM_WORKERS,N):
     y5=[]
     
     Len=len(Stat)
+    
     for i in range(max):
         Infected=0
         Spreaders=0
@@ -283,6 +322,7 @@ def Display(Stat,parameter,NUM_WORKERS,N):
         OpinionDenying=0
         OpinionSupporting=0
         for each in Stat:
+            
             Infected+=(each[i]['Infected'])
             Spreaders+=(each[i]['Spreaders'])
             RumorPopularity+=(each[i]['RumorPopularity'])
@@ -330,8 +370,8 @@ def Display(Stat,parameter,NUM_WORKERS,N):
 
     # Opinion
     plt.subplot(224)
-    plt.plot(x, y4,'r-',label="Supporting")
-    plt.plot(x, y5,label='Denying')
+    plt.plot(x, y4,label="Denaying")
+    plt.plot(x, y5,'r-',label='Supporting')
     plt.legend() 
     plt.grid(True)
     plt.title('Opinion')
@@ -350,21 +390,24 @@ def Display(Stat,parameter,NUM_WORKERS,N):
 
             
 
-if __name__ == '__main__':
+
     #Number of nodes
-    N=100000
+if __name__ == '__main__':
+    N=1000
     #gene graph
     g=json_graph.node_link_graph(Small_World_networks(N))
+    NUM_WORKERS=10
     percentage=1 #1% of popularity" is infected 
-    Stat=[]
+    S=[]
     parameter=[]
     parameters(parameter)
-    NUM_WORKERS = 10
-  
-    processes = [multiprocessing.Process(target=Start(g,parameter,Stat,percentage)) for i in range(NUM_WORKERS)]
-    [process.start() for process in processes]
-    [process.join() for process in processes]
-   
-    Display(Stat,parameter,NUM_WORKERS,N)
-    x=1.2144
+    with Manager() as manager:
+        Stat = manager.list()
+        
+        processes=[multiprocessing.Process(target=Start,args=(g,parameter,Stat,percentage))for i in range(NUM_WORKERS)] 
+        [process.start() for process in processes] 
+        [process.join() for process in processes] 
+        
+        Display(Stat,parameter,NUM_WORKERS,N)
+    
     
