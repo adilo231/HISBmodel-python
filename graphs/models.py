@@ -389,7 +389,7 @@ def Display(Stat_Global):
     plt.subplot(223)
     for infected in Stat:
     
-      plt.plot(x, infected["RumorPopularity"],label='v')
+      plt.plot(x, infected["RumorPopularity"],label='c')
     plt.legend() 
     plt.title('RumorPopularity')
     plt.grid(True)
@@ -418,9 +418,6 @@ def Display(Stat_Global):
     # Format the minor tick labels of the y-axis into empty strings with
     # `NullFormatter`, to avoid cumbering the axis with too many labels.
 
-
-
-
     plt.gca().yaxis.set_minor_formatter(NullFormatter())
             # Adjust the subplot layout, because the logit one may take more space
             # than usual, due to y-tick labels like "1 - 10^{-3}"
@@ -433,7 +430,7 @@ if __name__ == '__main__':
     N=1000
     #gene graph
     g=json_graph.node_link_graph(Small_World_networks(N))
-    NUM_WORKERS=1
+    NUM_WORKERS=3
     percentage=1 #1% of popularity" is infected 
    
     Beta=0.2
