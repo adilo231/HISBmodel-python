@@ -600,8 +600,8 @@ if __name__ == '__main__':
     juge=0.1
     delta=math.pi/24
 
-   # simul_beta(beta,1,6,N)
-    # simul_delta(delta,7,6,N)
+    simul_beta(beta,1,6,N)
+    simul_delta(delta,7,6,N)
     simul_juge(juge,13,9,N)
     simul_omega(omega,19,6,N)
     plt.show()
