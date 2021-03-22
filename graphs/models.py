@@ -8,6 +8,7 @@ import time
 from matplotlib.ticker import NullFormatter  
 import multiprocessing 
 from multiprocessing import Manager
+import math
 
 def IC(Networkx_Graph,Seed_Set,Probability):
     spread = []
@@ -56,12 +57,12 @@ def Neighbour_finder(g,new_active):
         targets += g.neighbors(node)
     return(targets)
 
-def HISBmodel (g,Seed_Set,Opinion_Set,Statistical,paramater):
-    Graph=g
+def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater):
+    
     #Opinion:normal/denying/supporting
     #State:non_infected/infected/spreaders 
     #Statistical:{'NonInfected':NbrOFnodes,'Infected':**,'Spreaders':**,OpinionDenying':**,'OpinionSupporting':**,'RumorPopularity':**}
-    
+  
     ListInfectedNodes=Seed_Set[:]
     Opinion_Set=Opinion_Set[:]
     time=0.125
@@ -102,7 +103,7 @@ def HISBmodel (g,Seed_Set,Opinion_Set,Statistical,paramater):
     Statistical.append({'NonInfected':Nbr_nonInfected,'Infected':Nbr_Infected,'Spreaders':Nbr_Spreaders,'OpinionDenying':OpinionDenying,'OpinionSupporting':OpinionSupporting,'RumorPopularity':RumorPopularity,'graph':0})
     #----------------------
     #if the list is empty we stop the propagation
-    x=0
+    
     while ListInfectedNodes: 
       RumorPopularity = 0
       Nbr_Spreaders = 0
@@ -175,8 +176,10 @@ def HISBmodel (g,Seed_Set,Opinion_Set,Statistical,paramater):
       #save each step to send it to viewing later
       Statistical.append({'NonInfected':Nbr_nonInfected,'Infected':Nbr_Infected,'Spreaders':Nbr_Spreaders,'OpinionDenying':OpinionDenying,'OpinionSupporting':OpinionSupporting,'RumorPopularity':RumorPopularity,'graph':0})
       time += 0.125;
+    
+    
    
-    print(Nbr_Infected)
+    
     
    
 def InitParameters(Graph,parameters):
@@ -186,9 +189,9 @@ def InitParameters(Graph,parameters):
     #Subjective judjement:Jug
   
     for node in Graph.nodes:
-       Graph.nodes[node]['omega']=Inclusive(parameters[0]['Omega_min'],parameters[0]['Omega_max'])
-       Graph.nodes[node]['beta']=Inclusive(parameters[0]['Beta_min'],parameters[0]['Beta_max'])
-       Graph.nodes[node]['delta']=Inclusive(parameters[0]['Delta_min'],parameters[0]['Delta_max'])
+       Graph.nodes[node]['omega']=Inclusive(parameters[0]['omega_min'],parameters[0]['omega_max'])
+       Graph.nodes[node]['beta']=Inclusive(parameters[0]['beta_min'],parameters[0]['beta_max'])
+       Graph.nodes[node]['delta']=Inclusive(parameters[0]['delta_min'],parameters[0]['delta_max'])
        Graph.nodes[node]['jug']=Inclusive(parameters[0]['Jug_min'],parameters[0]['Jug_max'])
 
 
@@ -242,37 +245,20 @@ def geneList_Infectede(Listinfected,Listopinion,N,percentage):
   
 
 
-def parameters(parameter,Beta=0.2,Omeag=0.1,Delta=0.1,Jug=0.1):
-    Beta_min= round(random.uniform(Beta, Beta+0.1),2)
-    Beta_max=Beta_min+ round(random.uniform(0.0, 0.5),2)
-    Omega_min= round(random.uniform(0.1, 6.0), 2)
-    Omega_max=Omega_min+round(random.uniform(0.0, 4.0),2)
-    Delta_min= round(random.uniform(0.1, 0.20), 2)
-    Delta_max=Delta_min+ round(random.uniform(0.2, 1.30),2)
-    Jug_min=round(random.uniform(0.1, 0.3), 2)
-    Jug_max=Jug_min+ round(random.uniform(0.2, 0.7),2)
-    parameter.append({'Beta_min':Beta_min,'Beta_max':Beta_max,'Omega_min':0.1,'Omega_max':6,'Delta_min':0.1,'Delta_max':1.6,'Jug_min':0.8,'Jug_max':1})
+def parameters(parameter,Beta=0.2,Omega=math.pi/12,Delta=math.pi/24,Jug=0.1):
+    Beta_max=Beta+0.2
+    Omega_max=Omega +math.pi/3
+    Delta_max=Delta +math.pi/12
+    Jug_max=Jug+0.1
+    parameter.append({'beta_min':Beta,'beta_max':Beta_max,'omega_min':Omega,'omega_max':Omega_max,'delta_min':Delta,'delta_max':Delta_max,'Jug_min':Jug,'Jug_max':Jug_max})
 
 
-def Start(Graph,parameter,Stat,percentage):
+def Start(i,index,Graph,parameter,Stat,percentage):
     for each in range(len(Graph.nodes)):
-        Graph.nodes[each]['id']=each
         Graph.nodes[each]['opinion']="normal"
-        Graph.nodes[each]['beta']=0
-        Graph.nodes[each]['omega']=0
-        Graph.nodes[each]['delta']=0
-        Graph.nodes[each]['jug']=0
-        Graph.nodes[each]['AccpR']=0
-        Graph.nodes[each]['SendR']=0
-        Graph.nodes[each]['Accp_NegR']=0
-        Graph.nodes[each]['value']=0
-        Graph.nodes[each]['infected']='false'
-        Graph.nodes[each]['degre']=Graph.degree[each]
-        Graph.nodes[each]['neighbors']=[n for n in Graph.neighbors(each)]
-
         Graph.nodes[each]['Infetime']=0 
         Graph.nodes[each]['state']='non_infected'
-    
+        
     Statistical=[]
     ListInfected=[]
     Listopinion=[]
@@ -280,9 +266,10 @@ def Start(Graph,parameter,Stat,percentage):
     geneList_Infectede(ListInfected,Listopinion,len(Graph.nodes),percentage)  
     HISBmodel(Graph,ListInfected,Listopinion,Statistical,parameter)  
     Stat.append(Statistical)
-    print(len(Stat))
+    
+    
    
-def globalStat(S,Stat_Global,parametre):
+def globalStat(S,Stat_Global,parameter):
     max=0
     Stat=[]
     for each in S:
@@ -307,8 +294,10 @@ def globalStat(S,Stat_Global,parametre):
     y3=[]
     y4=[]
     y5=[]   
-    Len=len(Stat) 
+    Len=len(Stat)
+  
     for i in range(max):
+        
         Infected=0
         Spreaders=0
         RumorPopularity=0
@@ -333,12 +322,25 @@ def globalStat(S,Stat_Global,parametre):
 
     #Number of nodes
 
-def Display(Stat_Global):
+def Display(Stat_Global,xx,title_fig,nb):
+    Title=''
+    if(title_fig=='beta'):
+        Title=r'$\beta$'
+    elif(title_fig=='delta'):
+        Title=r'$\delta$'
+    elif(title_fig=='omega'):
+        Title=r'$\omega$'
+    else:
+       Title="J"
     max=0
     Stat=[]
+    Infected=[]
+    para=[]
     for each in Stat_Global:
-        
         L=each['max']
+        Infected.append(each['Infected'][L-1])
+        para.append(each['parameter'][0][title_fig+"_min"])
+        
         Stat.append(each)
         if(L>max):
             max=L
@@ -356,107 +358,253 @@ def Display(Stat_Global):
                 each['OpinionDenying'].append(OpinionDenying)
                 each['OpinionSupporting'].append(OpinionSupporting)
                 each['RumorPopularity'].append(RumorPopularity)
-  
-    plt.figure(num=1,figsize=(18, 18))
-    color=[]
-    x = range(0,max)
-    my_string = "Node:{},N_Simulation:{},[Beta_min:{},Beta_max:{},Omega_min:{},Omega_max:{},Delta_min:{},Delta_max:{},Jug_min:{},Jug_max:{}]"
-    #Beta_min= parameter[0]['Beta_min']
-    #Beta_max=parameter[0]['Beta_max']
-    #Omega_min=parameter[0]['Omega_min']
-    #Omega_max=parameter[0]['Omega_max']
-    #Delta_min=parameter[0]['Delta_min']
-    #Delta_max=parameter[0]['Delta_max']
-    #Jug_min=parameter[0]['Jug_min']
-    #Jug_max=parameter[0]['Jug_max']
-    #title=my_string.format(N,NUM_WORKERS,Beta_min,Beta_max,Omega_min,Omega_max,Delta_min,Delta_max,Jug_min,Jug_max)
+    
+    pro=int(max/50)
+    
+    for each in Stat:
+            for j in reversed(range(max)):
+                d=j%pro
+                if(d!=0):
+                    each['Infected'].pop(j)
+                    each['Spreaders'].pop(j)
+                    each['OpinionDenying'].pop(j)
+                    each['OpinionSupporting'].pop(j)
+                    each['RumorPopularity'].pop(j)
+
+    
+    x = range(0,len(Stat[0]['Infected']))
+    x=np.array(x)*pro
+    
 
     # plot 
     
-   
+    type=['p','8','4','s','o','D','*','+','x']
+    
     #Infected
-    plt.subplot(221)
-    
-    for infected in Stat:
+    plt.figure(num=xx)
+    plt.subplot()
+    k="{}:[{},{}]"
+    for infected,j in zip( Stat,range(len(Stat))):
+      
+      plt.plot(x, infected["Infected"],marker=type[j],markersize=8,label=k.format(Title,round(infected['parameter'][0][title_fig+"_min"],2),round(infected['parameter'][0][title_fig+"_max"],2)))
+    plt.legend(fontsize=12) 
 
-      plt.plot(x, infected["Infected"],label=infected['parameter'][0]['Beta_min'])
-    plt.legend() 
-    plt.title('Infected')
+    plt.xlabel('Temps',fontsize=10)
+    plt.ylabel('Nombre des individues')
     plt.grid(True)
-    #plt.suptitle(title, fontsize=10)
-   
+    plt.savefig(title_fig+'infected.pdf',dpi=50)
     # RumorPopularity
-    plt.subplot(223)
-    for infected in Stat:
-    
-      plt.plot(x, infected["RumorPopularity"],label='c')
-    plt.legend() 
-    plt.title('RumorPopularity')
+    xx+=1
+    plt.figure(num=xx)
+    plt.subplot()
+    k="{}:[{},{}]"
+    for infected,j in zip( Stat,range(len(Stat))):
+      
+      plt.plot(x, infected["RumorPopularity"],marker=type[j],markersize=8,label=k.format(Title,round(infected['parameter'][0][title_fig+"_min"],2),round(infected['parameter'][0][title_fig+"_max"],2)))
+    plt.legend(fontsize=12) 
+    plt.xlabel('Temps')
+    plt.ylabel('Nombre des individues')
     plt.grid(True)
-
+    plt.savefig(title_fig+'RumorPopularity.pdf',dpi=20)
+    
     #Spreaders
-    plt.subplot(222)
-    for infected in Stat:
-        
-      plt.plot(x, infected["Spreaders"],label='r')
+    xx+=1
+    plt.figure(num=xx)
+    plt.subplot()
+    k="{}:[{},{}]" 
+    for infected ,j in zip( Stat,range(len(Stat))):
+      
+      plt.plot(x, infected["Spreaders"],marker=type[j],markersize=8,label=k.format(Title,round(infected['parameter'][0][title_fig+"_min"],2),round(infected['parameter'][0][title_fig+"_max"],2)))
     
-    plt.legend() 
-    plt.title('Spreaders')
+    plt.legend(fontsize=12)
     plt.grid(True)
+    plt.xlabel('Temps')
+    plt.ylabel('Nombre des individues')
+    plt.savefig(title_fig+'Spreaders.pdf',dpi=20)
+    
+   # Opinion
+    xx+=1
+    plt.figure(num=xx)
+    plt.subplot()
+    k="{}:[{},{}]" 
+    for infected,j in zip( Stat,range(len(Stat))):
+      plt.plot(x, infected["OpinionDenying"],marker=type[j],markersize=8,label=k.format(Title,round(infected['parameter'][0][title_fig+"_min"],2),round(infected['parameter'][0][title_fig+"_max"],2)))
+    plt.legend(fontsize=12) 
+    plt.grid(True)
+    plt.xlabel('Temps')
+    plt.ylabel('Nombre des individues')
+    plt.savefig(title_fig+'OpinionDenying.pdf',dpi=20)
+    
 
     # Opinion
-    plt.subplot(224)
-    for infected in Stat:
-            
-      plt.plot(x, infected["OpinionDenying"],label='Denaying')
-      plt.plot(x, infected["OpinionSupporting"],label='Supporting')
-
-    plt.legend() 
-    plt.grid(True)
-    plt.title('Opinion')
+    xx+=1
+    plt.figure(num=xx)
+    plt.subplot()
+    k="{}:[{},{}]" 
+    for infected,j in zip( Stat,range(len(Stat))):
+      plt.plot(x, infected["OpinionSupporting"],marker=type[j],markersize=8,label=k.format(Title,round(infected['parameter'][0][title_fig+"_min"],2),round(infected['parameter'][0][title_fig+"_max"],2)))
    
+    plt.legend(fontsize=12) 
+    plt.grid(True)
+    plt.xlabel('Temps')
+    plt.ylabel('Nombre des individues')
+    plt.savefig(title_fig+'OpinionSupporting.pdf',dpi=20)
+    
     # Format the minor tick labels of the y-axis into empty strings with
     # `NullFormatter`, to avoid cumbering the axis with too many labels.
 
-    plt.gca().yaxis.set_minor_formatter(NullFormatter())
-            # Adjust the subplot layout, because the logit one may take more space
-            # than usual, due to y-tick labels like "1 - 10^{-3}"
-    plt.subplots_adjust(top=0.92, bottom=0.08, left=0.10, right=0.95, hspace=0.25,
-                wspace=0.35)
-            
-    plt.show()
+    xx+=1
+    plt.figure(num=xx) 
+    plt.subplot()      
+    plt.plot(para,Infected,'bo')
+    plt.grid(True)
+    plt.xlabel(Title)
+    plt.ylabel('Nombre des individues')
+    plt.savefig(title_fig+'nodes.pdf',dpi=20)
+    
 
-if __name__ == '__main__':
-    N=10000
-    #gene graph
-    g=json_graph.node_link_graph(Small_World_networks(N))
-    NUM_WORKERS=3
-    percentage=1 #1% of popularity" is infected 
    
-    Beta=0.2
-   
-    with Manager() as manager:
-        Stat_Global=manager.list()
-        
-        for index in range(2):
-            with Manager() as manager:
-                Stat = manager.list()
-                parameter=[]
-                parameters(parameter,Beta=Beta+(index/10))
-                processes=[multiprocessing.Process(target=Start,args=(g,parameter,Stat,percentage))for i in range(NUM_WORKERS)] 
-                [process.start() for process in processes] 
-                [process.join() for process in processes] 
-                globalStat(Stat,Stat_Global,parameter)
+def Simulation(index,graph,Stat_Global,percentage):
+     Beta=0.2
+     with Manager() as manager:
+        Stat=manager.list()  
+        parameter=[]
+        parameters(parameter,Beta=Beta+index/10)
+        start_time = time.time()  
+        processes=[multiprocessing.Process(target=Start,args=(i,index,graph,parameter,Stat,percentage))for i in range(10)] 
+        [process.start() for process in processes] 
+        [process.join() for process in processes]
+        end_time = time.time() 
+        print("Parallel xx time=", end_time - start_time)
+        globalStat(Stat,Stat_Global,parameter)
        
-        Display(Stat_Global)
 
 
+N=100
+#gene graph
+g=json_graph.node_link_graph(Small_World_networks(N))
 
-
-
-
-   
+percentage=1 #1% of popularity" is infected 
 
     
+   
+'''
+    with Manager() as manager:
+        Stat_Global=manager.list() 
+        start_time = time.time()     
+        processes=[multiprocessing.Process(target=Simulation,args=(i,g,Stat_Global,percentage))for i in range(NUM_WORKERS)] 
+        [process.start() for process in processes] 
+        [process.join() for process in processes] 
+        end_time = time.time()
+        print("Parallel time=", end_time - start_time)
+        Display(Stat_Global)
+
+    
+'''
+def simul_beta(parbeta,x,NUM_WORKERS,nb_nodes):
+     beta=parbeta
+     with Manager() as manager:
+        Stat_Global=manager.list() 
+        for j in range(NUM_WORKERS):
+            with Manager() as manager:
+                Stat=manager.list()  
+                parameter=[]
+                parameters(parameter,Beta=beta)
+                start_time = time.time()  
+                processes=[multiprocessing.Process(target=Start,args=(i,j,g,parameter,Stat,percentage))for i in range(20)] 
+                [process.start() for process in processes] 
+                [process.join() for process in processes]
+                end_time = time.time() 
+                print("Parallel xx time=", end_time - start_time)
+                globalStat(Stat,Stat_Global,parameter)
+                beta+=0.2
+        Display(Stat_Global,x,"beta",nb_nodes)
+def simul_omega(paromega,x,NUM_WORKERS,nb_nodes):
+  omega=paromega
+  with Manager() as manager:
+    Stat_Global=manager.list() 
+    for j in range(NUM_WORKERS):
+        with Manager() as manager:
+            Stat=manager.list()  
+            parameter=[]        
+            parameters(parameter,Omega=omega)
+            start_time = time.time()  
+            processes=[multiprocessing.Process(target=Start,args=(i,j,g,parameter,Stat,percentage))for i in range(20)] 
+            [process.start() for process in processes] 
+            [process.join() for process in processes]
+            end_time = time.time() 
+            print("Parallel xx time=", end_time - start_time)
+            globalStat(Stat,Stat_Global,parameter)
+            omega+=math.pi/3
+    Display(Stat_Global,x,"omega",nb_nodes)
+def simul_delta(pardelta,x,NUM_WORKERS,nb_nodes):
+  delta=pardelta
+  with Manager() as manager:
+    Stat_Global=manager.list() 
+    for j in range(NUM_WORKERS):
+        with Manager() as manager:
+            Stat=manager.list()  
+            parameter=[]
+            parameters(parameter,Delta=delta)
+            start_time = time.time()  
+            processes=[multiprocessing.Process(target=Start,args=(i,j,g,parameter,Stat,percentage))for i in range(20)] 
+            [process.start() for process in processes] 
+            [process.join() for process in processes]
+            end_time = time.time() 
+            print("Parallel xx time=", end_time - start_time)
+            globalStat(Stat,Stat_Global,parameter)
+            delta+=math.pi/12
+    Display(Stat_Global,x,"delta",nb_nodes)
+def simul_juge(parjuge,x,NUM_WORKERS,nb_nodes):
+ jug=parjuge
+ with Manager() as manager:
+    Stat_Global=manager.list() 
+    for j in range(NUM_WORKERS):
+        with Manager() as manager:
+            Stat=manager.list()  
+            parameter=[]
+            parameters(parameter,Jug=jug)
+            start_time = time.time()  
+            processes=[multiprocessing.Process(target=Start,args=(i,j,g,parameter,Stat,percentage))for i in range(20)] 
+            [process.start() for process in processes] 
+            [process.join() for process in processes]
+            end_time = time.time() 
+            print("Parallel xx time=", end_time - start_time)
+            globalStat(Stat,Stat_Global,parameter)
+            jug+=0.1
+    Display(Stat_Global,x,"Jug",nb_nodes)
+
+def main2():
+    start_time = time.time()  
+    StatI=[]
+
+    for i in range(6):
+        parameter=[]
+        parameters(parameter,Omega=0.2+i/10)
+        Stat=[]
+        start_time1 = time.time() 
+        for j in range(50):
+            Start(i,j,g,parameter,Stat,percentage)
+        end_time1 = time.time()
+        print("Serial xx time=", end_time1 - start_time1)
+        globalStat(Stat,StatI,parameter)
+    end_time = time.time()
+    print("Serial time=", end_time - start_time)
+    Display(StatI)
+    
+    
+   
+if __name__ == '__main__':
+    beta=0.2
+    omega=math.pi/12
+    juge=0.1
+    delta=math.pi/24
+
+   # simul_beta(beta,1,6,N)
+    # simul_delta(delta,7,6,N)
+    simul_juge(juge,13,9,N)
+    simul_omega(omega,19,6,N)
+    plt.show()
+   
   
 
