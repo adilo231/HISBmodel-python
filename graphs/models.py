@@ -9,6 +9,7 @@ from matplotlib.ticker import NullFormatter
 import multiprocessing 
 from multiprocessing import Manager
 import math
+from pyvis.network import Network
 
 def IC(Networkx_Graph,Seed_Set,Probability):
     spread = []
@@ -353,14 +354,20 @@ def Display(Stat_Global,xx,title_fig,nb):
                     each['OpinionSupporting'].pop(j)
                     each['RumorPopularity'].pop(j)
 
-    
+    for each in Stat:
+            for j in reversed(range(10)):
+                    each['Infected'].pop(40+j)
+                    each['Spreaders'].pop(40+j)
+                    each['OpinionDenying'].pop(40+j)
+                    each['OpinionSupporting'].pop(40+j)
+                    each['RumorPopularity'].pop(40+j)
     x = range(0,len(Stat[0]['Infected']))
     x=np.array(x)*pro
     
 
     # plot 
     
-    type=['p','8','4','s','o','D','*','+','x']
+    type=['x','*','p','8','h','H','.','+','4']
     
     #Infected
     plt.figure(num=xx)
@@ -368,7 +375,7 @@ def Display(Stat_Global,xx,title_fig,nb):
     k="{}:[{},{}]"
     for infected,j in zip( Stat,range(len(Stat))):
       
-      plt.plot(x, infected["Infected"],marker=type[j],markersize=8,label=k.format(Title,round(infected['parameter'][0][title_fig+"_min"],2),round(infected['parameter'][0][title_fig+"_max"],2)))
+      plt.plot(x, infected["Infected"],marker=type[j],markersize=7,linewidth=1,label=k.format(Title,round(infected['parameter'][0][title_fig+"_min"],2),round(infected['parameter'][0][title_fig+"_max"],2)))
     plt.legend(fontsize=12) 
 
     plt.xlabel('Temps',fontsize=10)
@@ -382,7 +389,7 @@ def Display(Stat_Global,xx,title_fig,nb):
     k="{}:[{},{}]"
     for infected,j in zip( Stat,range(len(Stat))):
       
-      plt.plot(x, infected["RumorPopularity"],marker=type[j],markersize=8,label=k.format(Title,round(infected['parameter'][0][title_fig+"_min"],2),round(infected['parameter'][0][title_fig+"_max"],2)))
+      plt.plot(x, infected["RumorPopularity"],marker=type[j],markersize=6,linewidth=1,label=k.format(Title,round(infected['parameter'][0][title_fig+"_min"],2),round(infected['parameter'][0][title_fig+"_max"],2)))
     plt.legend(fontsize=12) 
     plt.xlabel('Temps')
     plt.ylabel('Nombre des individues')
@@ -396,7 +403,7 @@ def Display(Stat_Global,xx,title_fig,nb):
     k="{}:[{},{}]" 
     for infected ,j in zip( Stat,range(len(Stat))):
       
-      plt.plot(x, infected["Spreaders"],marker=type[j],markersize=8,label=k.format(Title,round(infected['parameter'][0][title_fig+"_min"],2),round(infected['parameter'][0][title_fig+"_max"],2)))
+      plt.plot(x, infected["Spreaders"],marker=type[j],markersize=6,linewidth=1,label=k.format(Title,round(infected['parameter'][0][title_fig+"_min"],2),round(infected['parameter'][0][title_fig+"_max"],2)))
     
     plt.legend(fontsize=12)
     plt.grid(True)
@@ -410,7 +417,7 @@ def Display(Stat_Global,xx,title_fig,nb):
     plt.subplot()
     k="{}:[{},{}]" 
     for infected,j in zip( Stat,range(len(Stat))):
-      plt.plot(x, infected["OpinionDenying"],marker=type[j],markersize=8,label=k.format(Title,round(infected['parameter'][0][title_fig+"_min"],2),round(infected['parameter'][0][title_fig+"_max"],2)))
+      plt.plot(x, infected["OpinionDenying"],marker=type[j],markersize=6,linewidth=2,label=k.format(Title,round(infected['parameter'][0][title_fig+"_min"],2),round(infected['parameter'][0][title_fig+"_max"],2)))
     plt.legend(fontsize=12) 
     plt.grid(True)
     plt.xlabel('Temps')
@@ -424,7 +431,7 @@ def Display(Stat_Global,xx,title_fig,nb):
     plt.subplot()
     k="{}:[{},{}]" 
     for infected,j in zip( Stat,range(len(Stat))):
-      plt.plot(x, infected["OpinionSupporting"],marker=type[j],markersize=8,label=k.format(Title,round(infected['parameter'][0][title_fig+"_min"],2),round(infected['parameter'][0][title_fig+"_max"],2)))
+      plt.plot(x, infected["OpinionSupporting"],marker=type[j],markersize=6,linewidth=2,label=k.format(Title,round(infected['parameter'][0][title_fig+"_min"],2),round(infected['parameter'][0][title_fig+"_max"],2)))
    
     plt.legend(fontsize=12) 
     plt.grid(True)
@@ -617,11 +624,11 @@ if __name__ == '__main__':
     #Graph's Parametres 
     P=0.3
     K=10
-    M=10
-    #g=json_graph.node_link_graph(Scale_free_networks(Nodes,M))
+    M=7
+    g=json_graph.node_link_graph(Scale_free_networks(Nodes,M))
     #g=json_graph.node_link_graph(Small_World_networks(Nodes,K,P))
     #g=json_graph.node_link_graph(Random_networks(Nodes,P))
-    g=json_graph.node_link_graph(facebook_graph())
+    #g=json_graph.node_link_graph(facebook_graph())
     static="Nodes :{},Edegs:{}."
     #print(static.format(Nodes,len(g.edges)))
     percentage=1 #1% of popularity" is infected 
@@ -630,15 +637,13 @@ if __name__ == '__main__':
     omega=0
     juge=0.1
     delta=0
-    #simul_beta(beta,1,5)
+    simul_beta(beta,1,5)
     #simul_delta(delta,7,5)
     #simul_juge(juge,13,9)
     #simul_omega(omega,19,5)
     #plt.show()
     
-    nx.draw_spectral(g)
-    
-    plt.show()
-    
-    
+    #net=Network(notebook="true")
+    #net.from_nx(g)
+    #net.show('rmzi.html')
 
