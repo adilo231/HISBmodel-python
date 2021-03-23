@@ -12,10 +12,7 @@ def Random_networks ( N=300 ,P=0.3):
     # Erdős-Rényi graph
     # number of nodes
     # expected number of partners
-    if(N is None):
-       N=300
-    if(P is None ):
-        P=0.5
+   
     
     g = nx.gnp_random_graph(N, P)  
     return graphe_TO_json(g)
