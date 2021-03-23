@@ -210,23 +210,10 @@ def updateOpinion(jug,Accpet_NegR,Nbr_OF_R):
     else:
         return 'supporting'
 
-def Small_World_networks(N=300,K=10,P=0.3):
-    
-    #Watts_strogatz graph
-    #N=number of nodes
-    #K=Each node is joined with its k nearest neighbors in a ring topology(anneau).
-    #P=The probability of rewiring each edge(Probabilite de remplace les arretes)
-    if(N is None):
-        N=300
-    if(K is None ):
-        K=10
-    if(P is None):
-        P=0.5
-    g= nx.watts_strogatz_graph(N,K,P)
-    return graphe_TO_json(g)
+
 def graphe_TO_json(g):
     
-    data =  json_graph.node_link_data(g, {"link": "links", "source": "source", "target": "target","weight":"weight"})
+    data =  json_graph.node_link_data(g,{"link": "links", "source": "source", "target": "target","weight":"weight"})
     data['nodes'] = [ {"id": i,"state":"non_infected","opinion":"normal","beta":0,"omega":0,"delta":0,"jug":0,"Infetime":0,"AccpR":0,"SendR":0,"Accp_NegR":0,"value":0,"infected":'false',"degre":g.degree[i],"neighbors":[n for n in g.neighbors(i)]} for i in range(len(data['nodes'])) ]
     data['links'] = [ {"source":u,"target":v,"weight":(g.degree[u]+g.degree[v])/2} for u,v in g.edges ]
     return data
@@ -241,17 +228,13 @@ def geneList_Infectede(Listinfected,Listopinion,N,percentage):
            Listopinion.append('denying')
         else:
             Listopinion.append('supporting')
-    
-  
 
-
-def parameters(parameter,Beta=0.2,Omega=math.pi/12,Delta=math.pi/24,Jug=0.1):
-    Beta_max=Beta+0.2
-    Omega_max=Omega +math.pi/3
-    Delta_max=Delta +math.pi/12
-    Jug_max=Jug+0.1
-    parameter.append({'beta_min':Beta,'beta_max':Beta_max,'omega_min':Omega,'omega_max':Omega_max,'delta_min':Delta,'delta_max':Delta_max,'Jug_min':Jug,'Jug_max':Jug_max})
-
+def parameters(parameter,stepBeta=1,Beta=0.2,stepOmega=5.2,Omega=math.pi/3,stepDelta=0.65,Delta=math.pi/24,stepJug=0.9,Jug=0.1):
+    Beta_max=Beta+stepBeta
+    Omega_max=Omega +stepOmega
+    Delta_max=Delta +stepDelta
+    Jug_max=Jug+stepJug
+    parameter.append({'beta_min':round(Beta,2),'beta_max':round(Beta_max,2),'omega_min':round(Omega,2),'omega_max':round(Omega_max,2),'delta_min':round(Delta,2),'delta_max':round(Delta_max,2),'Jug_min':round(Jug,2),'Jug_max':round(Jug_max,2)})
 
 def Start(i,index,Graph,parameter,Stat,percentage):
     for each in range(len(Graph.nodes)):
@@ -266,9 +249,7 @@ def Start(i,index,Graph,parameter,Stat,percentage):
     geneList_Infectede(ListInfected,Listopinion,len(Graph.nodes),percentage)  
     HISBmodel(Graph,ListInfected,Listopinion,Statistical,parameter)  
     Stat.append(Statistical)
-    
-    
-   
+       
 def globalStat(S,Stat_Global,parameter):
     max=0
     Stat=[]
@@ -326,6 +307,7 @@ def Display(Stat_Global,xx,title_fig,nb):
     Title=''
     if(title_fig=='beta'):
         Title=r'$\beta$'
+        
     elif(title_fig=='delta'):
         Title=r'$\delta$'
     elif(title_fig=='omega'):
@@ -462,8 +444,6 @@ def Display(Stat_Global,xx,title_fig,nb):
     plt.ylabel('Nombre des individues')
     plt.savefig(title_fig+'nodes.pdf',dpi=20)
     
-
-   
 def Simulation(index,graph,Stat_Global,percentage):
      Beta=0.2
      with Manager() as manager:
@@ -477,16 +457,39 @@ def Simulation(index,graph,Stat_Global,percentage):
         end_time = time.time() 
         print("Parallel xx time=", end_time - start_time)
         globalStat(Stat,Stat_Global,parameter)
-       
+ 
 
-
-N=100
 #gene graph
-g=json_graph.node_link_graph(Small_World_networks(N))
-
-percentage=1 #1% of popularity" is infected 
-
+def Random_networks ( N=300 ,P=0.3):
+    # Erdős-Rényi graph
+    # number of nodes
+    # expected number of partners
     
+    g = nx.gnp_random_graph(N, P)  
+    return graphe_TO_json(g)
+
+def Small_World_networks(N=300,K=10,P=0.3):
+    
+    #Watts_strogatz graph
+    #N=number of nodes
+    #K=Each node is joined with its k nearest neighbors in a ring topology(anneau).
+    #P=The probability of rewiring each edge(Probabilite de remplace les arretes)
+    g= nx.watts_strogatz_graph(N,K,P)
+    return graphe_TO_json(g)
+
+def Scale_free_networks (N=300,M=10):
+    #Barabasi_albert graph
+    #N= Number of nodes
+    #M= Number of edges to attach from a new node to existing nodes
+    g=nx.barabasi_albert_graph(N,M)
+    return graphe_TO_json(g)
+
+def facebook_graph():
+    FielName="C:/Users/RAMZI/Desktop/PFE/Application/flask/graphs/facebook.txt"
+    Graphtype=nx.DiGraph()
+    g= nx.read_edgelist(FielName,create_using=Graphtype,nodetype=int)
+    
+    return graphe_TO_json(g)
    
 '''
     with Manager() as manager:
@@ -501,80 +504,88 @@ percentage=1 #1% of popularity" is infected
 
     
 '''
-def simul_beta(parbeta,x,NUM_WORKERS,nb_nodes):
+def simul_beta(parbeta,x,NUM_WORKERS):
      beta=parbeta
+     stepBeta=0.2
      with Manager() as manager:
         Stat_Global=manager.list() 
         for j in range(NUM_WORKERS):
             with Manager() as manager:
                 Stat=manager.list()  
                 parameter=[]
-                parameters(parameter,Beta=beta)
+                parameters(parameter,stepBeta=stepBeta,Beta=beta)
                 start_time = time.time()  
-                processes=[multiprocessing.Process(target=Start,args=(i,j,g,parameter,Stat,percentage))for i in range(20)] 
+                processes=[multiprocessing.Process(target=Start,args=(i,j,g,parameter,Stat,percentage))for i in range(NumOFsumi)] 
                 [process.start() for process in processes] 
                 [process.join() for process in processes]
                 end_time = time.time() 
                 print("Parallel xx time=", end_time - start_time)
                 globalStat(Stat,Stat_Global,parameter)
-                beta+=0.2
-        Display(Stat_Global,x,"beta",nb_nodes)
-def simul_omega(paromega,x,NUM_WORKERS,nb_nodes):
+                beta+=stepBeta
+                print("step:",j,parameter)
+        Display(Stat_Global,x,"beta",Nodes)
+def simul_omega(paromega,x,NUM_WORKERS):
   omega=paromega
+  stepOmega=math.pi*0.4
   with Manager() as manager:
     Stat_Global=manager.list() 
     for j in range(NUM_WORKERS):
         with Manager() as manager:
             Stat=manager.list()  
             parameter=[]        
-            parameters(parameter,Omega=omega)
+            parameters(parameter,stepOmega=stepOmega,Omega=omega)
             start_time = time.time()  
-            processes=[multiprocessing.Process(target=Start,args=(i,j,g,parameter,Stat,percentage))for i in range(20)] 
+            processes=[multiprocessing.Process(target=Start,args=(i,j,g,parameter,Stat,percentage))for i in range(NumOFsumi)] 
             [process.start() for process in processes] 
             [process.join() for process in processes]
             end_time = time.time() 
             print("Parallel xx time=", end_time - start_time)
             globalStat(Stat,Stat_Global,parameter)
-            omega+=math.pi/3
-    Display(Stat_Global,x,"omega",nb_nodes)
-def simul_delta(pardelta,x,NUM_WORKERS,nb_nodes):
+            omega+=stepOmega
+            print("step:",j,parameter)
+    Display(Stat_Global,x,"omega",Nodes)
+def simul_delta(pardelta,x,NUM_WORKERS):
   delta=pardelta
+  stepDelta=0.156
   with Manager() as manager:
     Stat_Global=manager.list() 
     for j in range(NUM_WORKERS):
         with Manager() as manager:
             Stat=manager.list()  
             parameter=[]
-            parameters(parameter,Delta=delta)
+            parameters(parameter,stepDelta=stepDelta,Delta=delta)
             start_time = time.time()  
-            processes=[multiprocessing.Process(target=Start,args=(i,j,g,parameter,Stat,percentage))for i in range(20)] 
+            processes=[multiprocessing.Process(target=Start,args=(i,j,g,parameter,Stat,percentage))for i in range(NumOFsumi)] 
             [process.start() for process in processes] 
             [process.join() for process in processes]
             end_time = time.time() 
             print("Parallel xx time=", end_time - start_time)
             globalStat(Stat,Stat_Global,parameter)
-            delta+=math.pi/12
-    Display(Stat_Global,x,"delta",nb_nodes)
-def simul_juge(parjuge,x,NUM_WORKERS,nb_nodes):
+            delta+=stepDelta
+            print("step:",j,parameter)
+    Display(Stat_Global,x,"delta",Nodes)
+def simul_juge(parjuge,x,NUM_WORKERS):
  jug=parjuge
+ stepJug=0.1
  with Manager() as manager:
     Stat_Global=manager.list() 
     for j in range(NUM_WORKERS):
         with Manager() as manager:
             Stat=manager.list()  
             parameter=[]
-            parameters(parameter,Jug=jug)
+            parameters(parameter,stepJug=stepJug,Jug=jug)
             start_time = time.time()  
-            processes=[multiprocessing.Process(target=Start,args=(i,j,g,parameter,Stat,percentage))for i in range(20)] 
+            processes=[multiprocessing.Process(target=Start,args=(i,j,g,parameter,Stat,percentage))for i in range(NumOFsumi)] 
             [process.start() for process in processes] 
             [process.join() for process in processes]
             end_time = time.time() 
             print("Parallel xx time=", end_time - start_time)
             globalStat(Stat,Stat_Global,parameter)
-            jug+=0.1
-    Display(Stat_Global,x,"Jug",nb_nodes)
+            jug+=stepJug
+            print("step:",j,parameter)
+    Display(Stat_Global,x,"Jug",Nodes)
 
-def main2():
+def Iterative():
     start_time = time.time()  
     StatI=[]
 
@@ -595,16 +606,39 @@ def main2():
     
    
 if __name__ == '__main__':
-    beta=0.2
-    omega=math.pi/12
-    juge=0.1
-    delta=math.pi/24
+    
 
-    simul_beta(beta,1,6,N)
-    simul_delta(delta,7,6,N)
-    simul_juge(juge,13,9,N)
-    simul_omega(omega,19,6,N)
-    plt.show()
+       # use net.Graph() for undirected graph
+
+# How to read from a file. Note: if your egde weights are int, 
+# change float to int.
    
-  
+    Nodes=100
+    #Graph's Parametres 
+    P=0.3
+    K=10
+    M=10
+    #g=json_graph.node_link_graph(Scale_free_networks(Nodes,M))
+    #g=json_graph.node_link_graph(Small_World_networks(Nodes,K,P))
+    #g=json_graph.node_link_graph(Random_networks(Nodes,P))
+    g=json_graph.node_link_graph(facebook_graph())
+    static="Nodes :{},Edegs:{}."
+    #print(static.format(Nodes,len(g.edges)))
+    percentage=1 #1% of popularity" is infected 
+    NumOFsumi=1
+    beta=0.2
+    omega=0
+    juge=0.1
+    delta=0
+    #simul_beta(beta,1,5)
+    #simul_delta(delta,7,5)
+    #simul_juge(juge,13,9)
+    #simul_omega(omega,19,5)
+    #plt.show()
+    
+    nx.draw_spectral(g)
+    
+    plt.show()
+    
+    
 
