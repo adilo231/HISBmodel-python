@@ -147,6 +147,12 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater,K,Tdet,method):
           if (method=='BNLS'):
               Random_Blocking_nodes(Graph, p)
               bl=len(blocked(Graph))
+          elif method=='MDBNLS':
+            
+                Degree_MAX_Blocking_nodes(Graph, p)
+                bl=len(blocked(Graph))
+                #print(p)
+                
           elif method=='TCS':
               Random_TRuth_comp(Graph, p)
               Liste_protector=Protector(Graph)
@@ -156,7 +162,8 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater,K,Tdet,method):
                   ListInfectedNodes.append(Liste_protector[i])
               bl=len(Liste_protector)
              # print("node protector",bl)
-              
+      elif bl==K:
+          print(bl,"nodes blocked")
       time += 0.125;   
 def InitParameters(Graph,parameters):
     #Individual back ground knowledge:Beta
@@ -281,7 +288,7 @@ def globalStat(S,Stat_Global,parameter,method):
     #Number of nodes
 def Display(Stat_Global,xx,title_fig,nb):
    #print(Stat_Global)
-    Title=['BNLS','TCS','NP']
+    Title=['BNLS','TCS','NP','MDBNLS']
     
     max=0
     Stat=[]
@@ -503,7 +510,9 @@ def simulation_strategy(x,K,Tdet,method,G):
                 [process.start() for process in processes] 
                 [process.join() for process in processes]
                 end_time = time.time() 
-                print("Parallel xx time=", end_time - start_time)
+                m1=len(blocked(g))
+                print("Parallel xx time=", end_time - start_time,"number of nodes blocked",m1)
+
                 globalStat(Stat,Stat_Global,parameter,met)
             v+=1     
         Display(Stat_Global,x,'NBLS',Nodes)
@@ -540,21 +549,31 @@ def Random_Blocking_nodes(Graphe,k):
 def Degree_MAX(G,K,nb):
     L=[]
     P=[]
-    for i in range(nb):
+    for i in nb:
         L.append(G.nodes[i]['degree'])
     sorted(L,reverse=True)
-    P=L[:K]
+    if len(L)>=K:
+        P=L[:K]
+    else: 
+        P=L
     return P
-def Degree_MAX_Blocking_nodes(G,k,nb):
-    #sp=search_spreaders(Graphe)
-    #nb=neighbor(sp,Graphe)
-    L=Degree_MAX(G, K, nb)
-    #print(L)
-    j=0
-    for i in range(nb):
-        if(G.nodes[i]['degree']==L[j]):
-            G.nodes[i]['blocked']=True
-            j+=1
+    
+        
+    
+    return P
+def Degree_MAX_Blocking_nodes(G,k):
+    sp=[]
+    L=[]
+    search_spreaders(G,sp) #seach for spreader   
+    nb=neighbor(sp,G)         #get thier nieghbors
+    L=Degree_MAX(G, k, nb)    # get the k nodes's biggest deegree
+    size=len(L)
+    if k>size:
+      k=size-1
+    for i in range(k):
+        G.nodes[L[i]]['blocked']='True'
+        
+    
             
 def Random_TRuth_comp(Graphe,k):
     sp=[]
@@ -605,6 +624,8 @@ if __name__ == '__main__':
     G.append(g)
     G.append(g)
     G.append(g)
+    G.append(g)
+    G.append(g)
     Nodes=len(g.nodes)
     static="Nodes :{},Edegs:{}."
     percentage=5 #1% of popularity" is infected 
@@ -616,7 +637,7 @@ if __name__ == '__main__':
     K=int(Nodes*0.35)
     print(K)
     Tdet=1
-    m=['BNLS','TCS','g']
+    m=['BNLS','TCS','NP','MDBNLS']
     
     simulation_strategy(1,  K, Tdet, m,G)
     plt.show()
