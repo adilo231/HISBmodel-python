@@ -161,10 +161,15 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater,K,Tdet,method):
           if (method=='BNLSCen'):
               Centrality_Blocking_nodes(Graph,p)
               bl=len(blocked(Graph))
-          if (method=='BNLSBeta'):
-              Beta_Blocking_nodes(Graph,p)
+          if (method=='BNLSB'):
+              Betweenness_Blocking_nodes(Graph,p)
               bl=len(blocked(Graph))
-
+              ''' if (method=='BNLSCO'):
+              Closeness_Blocking_nodes(Graph,p)
+              bl=len(blocked(Graph))
+              if (method=='BNLSCL'):
+              communicability_Blocking_nodes(Graph,p)
+              bl=len(blocked(Graph))'''
               
           elif method=='TCS':
               Random_TRuth_comp(Graph, p)
@@ -173,10 +178,6 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater,K,Tdet,method):
              # print(taille)
               for i in range(taille):
                   Graph.nodes[Liste_protector[i]]['Infetime'] =time
-                  Graph.nodes[Liste_protector[i]]['opinion']=="denying"
-                  Graph.nodes[Liste_protector[i]]['state']='spreaders'
-                  Graph.nodes[Liste_protector[i]]['AccpR']+=1
-                  Graph.nodes[Liste_protector[i]]['Accp_NegR']+=1
                   ListInfectedNodes.append(Liste_protector[i])
               bl=len(Liste_protector)
           elif method=='TCSM':
@@ -187,34 +188,15 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater,K,Tdet,method):
                  ListInfectedNodes.append(Liste_protector[i])
                  Graph.nodes[Liste_protector[i]]['Infetime'] =time
                  Graph.nodes[Liste_protector[i]]['opinion']=="denying"
-                 Graph.nodes[Liste_protector[i]]['state']='spreaders'
-                 Graph.nodes[Liste_protector[i]]['AccpR']+=1
-                 Graph.nodes[Liste_protector[i]]['Accp_NegR']+=1
              bl=len(Liste_protector)
           elif method=='TCSCen':
-             Centrality_TRuth_comp(Graph, p)
+             MaxDegree_TRuth_comp(Graph, p)
              Liste_protector=Protector(Graph)
              taille=len(Liste_protector)
              for i in range(taille):
                  ListInfectedNodes.append(Liste_protector[i])
                  Graph.nodes[Liste_protector[i]]['Infetime'] =time
                  Graph.nodes[Liste_protector[i]]['opinion']=="denying"
-
-                 Graph.nodes[Liste_protector[i]]['state']='spreaders'
-                 Graph.nodes[Liste_protector[i]]['AccpR']+=1
-                 Graph.nodes[Liste_protector[i]]['Accp_NegR']+=1
-             bl=len(Liste_protector)
-          elif method=='TCSBeta':
-             Beta_TRuth_comp(Graph, p)
-             Liste_protector=Protector(Graph)
-             taille=len(Liste_protector)
-             for i in range(taille):
-                 ListInfectedNodes.append(Liste_protector[i])
-                 Graph.nodes[Liste_protector[i]]['Infetime'] =time
-                 Graph.nodes[Liste_protector[i]]['opinion']=="denying"
-                 Graph.nodes[Liste_protector[i]]['state']='spreaders'
-                 Graph.nodes[Liste_protector[i]]['AccpR']+=1
-                 Graph.nodes[Liste_protector[i]]['Accp_NegR']+=1
              bl=len(Liste_protector)
           print(method," At time:", time, "blocked nodes Nbr:", bl)
             
@@ -343,7 +325,8 @@ def globalStat(S,Stat_Global,parameter,method):
     #Number of nodes
 def Display(Stat_Global,xx,title_fig,nb):
    #print(Stat_Global)
-    Title=['BNLS','BNLSM','BNLSCen','BNLSBeta','TCS','TCSM','TCSCen','TCSBeta','NP']
+    Title=['BNLS','BNLSM','BNLSCen','BNLSB','BNLSCO','BNLSCL','TCS','TCSM','TCSCen','TCSB','TCSCO','TCSCL','NP']
+    
     max=0
     Stat=[]
     Infected=[]
@@ -545,10 +528,13 @@ def neighbor(Spreaders,g):
     neighb=[]
     MaxD=[]
     Cente=[]
-    beta=[]
-
+    BetweenL=[]
+    CommunicL=[]
+    ClosenessL=[]
+    Communic=nx.communicability_exp(g)
+    Closeness=nx.closeness_centrality(g)
+    Between=(nx.betweenness_centrality(g))
     Cent=((nx.degree_centrality(g)))
-    
     for i in Spreaders:
         n=g.neighbors(i)
         
@@ -559,11 +545,12 @@ def neighbor(Spreaders,g):
                   neighb.append(j)
                   Cente.append(Cent[j])
                   MaxD.append(g.nodes[j]['degree'])
-                  beta.append(g.nodes[j]['beta'])
-           
-              
+                  BetweenL.append(Between[j])
+                  CommunicL.append(Communic[j])
+                  ClosenessL.append(Closeness[j])
+                  
    
-    return neighb,MaxD,Cente,beta
+    return neighb,MaxD,Cente,BetweenL,CommunicL,ClosenessL
 def simulation_strategy(x,K,Tdet,method,G):
    
     with Manager() as manager:
@@ -606,7 +593,7 @@ def Iterative():
 def Random_Blocking_nodes(Graphe,k):
     sp=[]
     search_spreaders(Graphe,sp)
-    nb,d,cen,Bet=neighbor(sp,Graphe)
+    nb,d,cen,Bet,Com,Clo=neighbor(sp,Graphe)
     size=len(nb)
     if k>size:
       k=size-1
@@ -630,7 +617,7 @@ def Degree_MAX_Blocking_nodes(G,k):
    
     search_spreaders(G,sp)
    
-    nb,DNode,cen,Bet=neighbor(sp,G)
+    nb,DNode,cen,Bet,Com,Clo=neighbor(sp,G)
     
 
     for i in range(k):
@@ -645,34 +632,66 @@ def Centrality_Blocking_nodes(G,k):
     sp=[]
    
     search_spreaders(G,sp)
-    nb,DNode,cen,Bet=neighbor(sp,G)
+   
+    nb,DNode,cen,Bet,Com,Clo=neighbor(sp,G)
+    
+
     for i in range(k):
             
             ID = cen.index(max(cen))
             G.nodes[nb[ID]]['blocked']='True'
             cen.pop(ID)
             nb.pop(ID)         
-def Beta_Blocking_nodes(G,k):
+def Betweenness_Blocking_nodes(G,k):
     
     sp=[]
    
     search_spreaders(G,sp)
    
-    nb,DNode,cen,Bet=neighbor(sp,G)
+    nb,DNode,cen,Bet,Com,Clo=neighbor(sp,G)
+    print(Bet)
+
+    for i in range(k):
+            
+            ID = Bet.index(max(Bet))
+            G.nodes[nb[ID]]['blocked']='True'
+            Bet.pop(ID)
+            nb.pop(ID)         
+def Closeness_Blocking_nodes(G,k):
+
+    
+    sp=[]
+   
+    search_spreaders(G,sp)
+   
+    nb,DNode,cen,Bet,Com,Clo=neighbor(sp,G)
     
 
     for i in range(k):
             
-            ID = Bet.index(min(Bet))
+            ID = Clo.index(max(Clo))
             G.nodes[nb[ID]]['blocked']='True'
-            Bet.pop(ID)
-            nb.pop(ID)         
+            Clo.pop(ID)
+            nb.pop(ID)   
+def communicability_Blocking_nodes(G,k):
+    
+    sp=[]
    
+    search_spreaders(G,sp)
+   
+    nb,DNode,cen,Bet,Com,Clo=neighbor(sp,G)
+    
 
+    for i in range(k):
+            
+            ID = Com.index(max(Com))
+            G.nodes[nb[ID]]['blocked']='True'
+            Com.pop(ID)
+            nb.pop(ID) 
 def Random_TRuth_comp(Graphe,k):
     sp=[]
     search_spreaders(Graphe,sp)
-    nb,d,cen,Bet=neighbor(sp,Graphe)
+    nb,d,cen,Bet,Com,Clo=neighbor(sp,Graphe)
     size=len(nb)
     if k > size :
        k=size-1
@@ -685,7 +704,7 @@ def Random_TRuth_comp(Graphe,k):
 def MaxDegree_TRuth_comp(Graphe,K):
     sp=[]
     search_spreaders(Graphe,sp)
-    nb,d,cen,Bet=neighbor(sp,Graphe)
+    nb,d,cen,Bet,Com,Clo=neighbor(sp,Graphe)
     size=len(nb)
     k=K
     if k > size :
@@ -699,9 +718,7 @@ def MaxDegree_TRuth_comp(Graphe,K):
 def Centrality_TRuth_comp(Graphe,K):
     sp=[]
     search_spreaders(Graphe,sp)
-   
-    nb,d,cen,Bet=neighbor(sp,Graphe)
-   
+    nb,d,cen,Bet,Com,Clo=neighbor(sp,Graphe)
     size=len(nb)
     k=K
     if k > size :
@@ -712,22 +729,51 @@ def Centrality_TRuth_comp(Graphe,K):
         Graphe.nodes[nb[s]]['state']='infected'
         nb.pop(s)
         cen.pop(s)
-def Beta_TRuth_comp(Graphe,K):
+def Betweenness_TRuth_comp(Graphe,K):
     sp=[]
     search_spreaders(Graphe,sp)
-    nb,d,bet,cen=neighbor(sp,Graphe)
+    nb,d,cen,Bet,Com,Clo=neighbor(sp,Graphe)
+    
     size=len(nb)
     k=K
     if k > size :
        k=size-1
     for i in range(k):
-        s = cen.index(min(cen))
+        s = Bet.index(max(Bet))
         Graphe.nodes[nb[s]]['Protector']='True'
         Graphe.nodes[nb[s]]['state']='infected'
         nb.pop(s)
-        cen.pop(s)
+        Bet.pop(s)
+def Closenness_TRuth_comp(Graphe,K):
+    sp=[]
+    search_spreaders(Graphe,sp)
+    nb,d,cen,Bet,Com,Clo=neighbor(sp,Graphe)
+    size=len(nb)
+    k=K
+    if k > size :
+       k=size-1
+    for i in range(k):
+        s = Clo.index(max(Clo))
+        Graphe.nodes[nb[s]]['Protector']='True'
+        Graphe.nodes[nb[s]]['state']='infected'
+        nb.pop(s)
+        Clo.pop(s)
+def Communcability_TRuth_comp(Graphe,K):
+    sp=[]
+    search_spreaders(Graphe,sp)
+    nb,d,cen,Bet,Com,Clo=neighbor(sp,Graphe)
+    size=len(nb)
+    k=K
+    if k > size :
+       k=size-1
+    for i in range(k):
+        s = Com.index(max(Com))
+        Graphe.nodes[nb[s]]['Protector']='True'
+        Graphe.nodes[nb[s]]['state']='infected'
+        nb.pop(s)
+        Com.pop(s)
 
-
+       
 def blocked(G):
     
     L=[]
@@ -762,9 +808,8 @@ if __name__ == '__main__':
     
     #print(g.nodes[12]['neighbors'])
     G=[]
-    m=['TCSCen']
     m=['BNLS'
-      ,'BNLSM','BNLSCen','BNLSBeta','TCS','TCSM','TCSCen','TCSBeta','NP']
+      ,'BNLSM','BNLSCen','BNLSB','BNLSCO','BNLSCL','TCS','TCSM','TCSCen','TCSB','TCSCO','TCSCL','NP']
     
     for i in range(len(m)):
         G.append(g)
@@ -773,7 +818,7 @@ if __name__ == '__main__':
     Nodes=len(g.nodes)
     static="Nodes :{},Edegs:{}."
     percentage=5 #1% of popularity" is infected 
-    NumOFsumi=5
+    NumOFsumi=1
     beta=0.2
     omega=0
     juge=0.1
@@ -782,9 +827,6 @@ if __name__ == '__main__':
     print(K)
     Tdet=1
     
-   
-    
-
-    
-    simulation_strategy(1,  K, Tdet, m,G)
+    #print((nx.communicability(g)))
+    #simulation_strategy(1,  K, Tdet, ['BNLSB'],G)
     plt.show()
