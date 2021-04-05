@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Apr  4 09:18:28 2021
+
+@author: mac
+"""
+
 import numpy as np
 from networkx.readwrite import json_graph
 import networkx as nx
@@ -23,7 +31,7 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater,K,Tdet,method):
     ListInfectedNodes=Seed_Set[:]
     Opinion_Set=Opinion_Set[:]
     time=0.125
-    Probability=0.45
+    Probability=0.20
     i=0
     #Initialis Parameters----------------------------
     #-------------------------
@@ -100,7 +108,7 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater,K,Tdet,method):
                 #Sending Rumor
                 for each in new_ones:
                     #Accepted Rumor Probability 
-                    AccepR = Graph.nodes[id]['degree']/ (Graph.nodes[id]['degree'] + Graph.nodes[each]['degree'])*0.7
+                    AccepR = Graph.nodes[id]['degree']/ (Graph.nodes[id]['degree'] + Graph.nodes[each]['degree'])*0.5
                     if (Graph.nodes[each]['blocked'] =='false'):
                         if(np.random.random_sample()<=AccepR):
                         
@@ -139,31 +147,51 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater,K,Tdet,method):
       
       #save each step to send it to viewing later
       Statistical.append({'NonInfected':Nbr_nonInfected,'Infected':Nbr_Infected,'Spreaders':Nbr_Spreaders,'OpinionDenying':OpinionDenying,'OpinionSupporting':OpinionSupporting,'RumorPopularity':RumorPopularity,'graph':0})
-      if time >Tdet*0.125 and bl<K :
-          
+      if time >Tdet*0.125 and bl<K  and method != 'NP' :
+          print(method," At time:", time, "blocked nodes Nbr:", bl)
           Nodes=len(Graph.nodes)
           
           p=K-bl
           if (method=='BNLS'):
               Random_Blocking_nodes(Graph, p)
               bl=len(blocked(Graph))
-          elif method=='MDBNLS':
-            
-                Degree_MAX_Blocking_nodes(Graph, p)
-                bl=len(blocked(Graph))
-                #print(p)
-                
+          if (method=='BNLSM'):
+              Degree_MAX_Blocking_nodes(Graph,p)
+              bl=len(blocked(Graph))
+          if (method=='BNLSCen'):
+              Centrality_Blocking_nodes(Graph,p)
+              bl=len(blocked(Graph))
+              
           elif method=='TCS':
               Random_TRuth_comp(Graph, p)
               Liste_protector=Protector(Graph)
               taille=len(Liste_protector)
              # print(taille)
               for i in range(taille):
+                  Graph.nodes[Liste_protector[i]]['Infetime'] =time
                   ListInfectedNodes.append(Liste_protector[i])
               bl=len(Liste_protector)
-             # print("node protector",bl)
-      elif bl==K:
-          print(bl,"nodes blocked")
+          elif method=='TCSM':
+             MaxDegree_TRuth_comp(Graph, p)
+             Liste_protector=Protector(Graph)
+             taille=len(Liste_protector)
+             for i in range(taille):
+                 ListInfectedNodes.append(Liste_protector[i])
+                 Graph.nodes[Liste_protector[i]]['Infetime'] =time
+                 Graph.nodes[Liste_protector[i]]['opinion']=="denying"
+             bl=len(Liste_protector)
+          elif method=='TCSCen':
+             MaxDegree_TRuth_comp(Graph, p)
+             Liste_protector=Protector(Graph)
+             taille=len(Liste_protector)
+             for i in range(taille):
+                 ListInfectedNodes.append(Liste_protector[i])
+                 Graph.nodes[Liste_protector[i]]['Infetime'] =time
+                 Graph.nodes[Liste_protector[i]]['opinion']=="denying"
+             bl=len(Liste_protector)
+          print(method," At time:", time, "blocked nodes Nbr:", bl)
+            
+              
       time += 0.125;   
 def InitParameters(Graph,parameters):
     #Individual back ground knowledge:Beta
@@ -288,7 +316,7 @@ def globalStat(S,Stat_Global,parameter,method):
     #Number of nodes
 def Display(Stat_Global,xx,title_fig,nb):
    #print(Stat_Global)
-    Title=['BNLS','TCS','NP','MDBNLS']
+    Title=['BNLSM','BNLS','BNLSCen','TCSM','TCS','TCSCen','NP']
     
     max=0
     Stat=[]
@@ -372,6 +400,7 @@ def Display(Stat_Global,xx,title_fig,nb):
     plt.xlabel('Temps')
     plt.ylabel('Nombre des individues')
     plt.grid(True)
+    plt.title("popularity")
     plt.savefig(title_fig+'RumorPopularity.pdf',dpi=20)
     
     #Spreaders
@@ -386,25 +415,27 @@ def Display(Stat_Global,xx,title_fig,nb):
     
     plt.legend(fontsize=12)
     plt.grid(True)
+    plt.title("Spreaders")
     plt.xlabel('Temps')
     plt.ylabel('Nombre des individues')
     plt.savefig(title_fig+'Spreaders.pdf',dpi=20)
+   
     
-   # Opinion
-    xx+=1
-    plt.figure(num=xx)
-    plt.subplot()
-    #k="{}:{},{}]" 
-    k="{}" 
-    for infected,j in zip( Stat,range(len(Stat))):
-      quotients = [number /Nodes  for number in infected["OpinionDenying"]]
+   # # Opinion
+   #  xx+=1
+   #  plt.figure(num=xx)
+   #  plt.subplot()
+   #  #k="{}:{},{}]" 
+   #  k="{}" 
+   #  for infected,j in zip( Stat,range(len(Stat))):
+   #    quotients = [number /Nodes  for number in infected["OpinionDenying"]]
       
-      plt.plot(x, quotients,marker=type[j],markersize=6,linewidth=2,label=k.format(Title[j]))
-    plt.legend(fontsize=12) 
-    plt.grid(True)
-    plt.xlabel('Temps')
-    plt.ylabel('Nombre des individues')
-    plt.savefig(title_fig+'OpinionDenying.pdf',dpi=20)
+   #    plt.plot(x, quotients,marker=type[j],markersize=6,linewidth=2,label=k.format(Title[j]))
+   #  plt.legend(fontsize=12) 
+   #  plt.grid(True)
+   #  plt.xlabel('Temps')
+   #  plt.ylabel('Nombre des individues')
+   #  plt.savefig(title_fig+'OpinionDenying.pdf',dpi=20)
     
 
     # Opinion
@@ -415,12 +446,13 @@ def Display(Stat_Global,xx,title_fig,nb):
     k="{}" 
     for infected,j in zip( Stat,range(len(Stat))):
       quotients = [number /Nodes  for number in infected["OpinionSupporting"]]
-      plt.plot(x, quotients,marker=type[j],markersize=6,linewidth=2)
+      plt.plot(x, quotients,marker=type[j],markersize=6,linewidth=2,label=k.format(Title[j]))
    
-    #plt.legend(fontsize=12) 
+    plt.legend(fontsize=12) 
     plt.grid(True)
     plt.xlabel('Temps')
     plt.ylabel('Nombre des individues')
+    plt.title("Supporting")
     plt.savefig(title_fig+'OpinionSupporting.pdf',dpi=20)
     
     # Format the minor tick labels of the y-axis into empty strings with
@@ -432,6 +464,7 @@ def Display(Stat_Global,xx,title_fig,nb):
     plt.plot(para,Infected,'bo')
     plt.grid(True)
     plt.xlabel(Title)
+    plt.title("infected")
     plt.ylabel('Nombre des individues')
     plt.savefig(title_fig+'nodes.pdf',dpi=20) 
 def Simulation(index,graph,Stat_Global,percentage):
@@ -470,7 +503,7 @@ def Scale_free_networks (N=300,M=10):
     g=nx.barabasi_albert_graph(N,M)
     return graphe_TO_json(g)
 def facebook_graph():
-    FielName="facebook_combined.txt"
+    FielName="facebook.txt"
     Graphtype=nx.DiGraph()
     g= nx.read_edgelist(FielName,create_using=Graphtype,nodetype=int)
     
@@ -484,14 +517,22 @@ def search_spreaders(G,sp):
                 
 def neighbor(Spreaders,g):
     neighb=[]
+    MaxD=[]
+    Cente=[]
+    Cent=((nx.degree_centrality(g)))
     for i in Spreaders:
         n=g.neighbors(i)
         
         for j in n:
           
           if g.nodes[j]['state'] =='non_infected':
-              neighb.append(j)
-    return neighb
+              if j not in neighb :
+                  neighb.append(j)
+                  Cente.append(Cent[j])
+                  MaxD.append(g.nodes[j]['degree'])
+                  
+   
+    return neighb,MaxD,Cente
 def simulation_strategy(x,K,Tdet,method,G):
    
     with Manager() as manager:
@@ -510,9 +551,7 @@ def simulation_strategy(x,K,Tdet,method,G):
                 [process.start() for process in processes] 
                 [process.join() for process in processes]
                 end_time = time.time() 
-                m1=len(blocked(g))
-                print("Parallel xx time=", end_time - start_time,"number of nodes blocked",m1)
-
+                print("Parallel xx time=", end_time - start_time)
                 globalStat(Stat,Stat_Global,parameter,met)
             v+=1     
         Display(Stat_Global,x,'NBLS',Nodes)
@@ -536,7 +575,7 @@ def Iterative():
 def Random_Blocking_nodes(Graphe,k):
     sp=[]
     search_spreaders(Graphe,sp)
-    nb=neighbor(sp,Graphe)
+    nb,d,cen=neighbor(sp,Graphe)
     size=len(nb)
     if k>size:
       k=size-1
@@ -549,36 +588,47 @@ def Random_Blocking_nodes(Graphe,k):
 def Degree_MAX(G,K,nb):
     L=[]
     P=[]
-    for i in nb:
+  
+    for i in range(len(nb)):
         L.append(G.nodes[i]['degree'])
-    sorted(L,reverse=True)
-    if len(L)>=K:
-        P=L[:K]
-    else: 
-        P=L
-    return P
-    
-        
-    
-    return P
+
+    return L
 def Degree_MAX_Blocking_nodes(G,k):
-    sp=[]
-    L=[]
-    search_spreaders(G,sp) #seach for spreader   
-    nb=neighbor(sp,G)         #get thier nieghbors
-    L=Degree_MAX(G, k, nb)    # get the k nodes's biggest deegree
-    size=len(L)
-    if k>size:
-      k=size-1
-    for i in range(k):
-        G.nodes[L[i]]['blocked']='True'
-        
     
+    sp=[]
+   
+    search_spreaders(G,sp)
+   
+    nb,DNode,cen=neighbor(sp,G)
+    
+
+    for i in range(k):
+            
+            ID = DNode.index(max(DNode))
+            G.nodes[nb[ID]]['blocked']='True'
+            DNode.pop(ID)
+            nb.pop(ID)
+            
+def Centrality_Blocking_nodes(G,k):
+    
+    sp=[]
+   
+    search_spreaders(G,sp)
+   
+    nb,DNode,cen=neighbor(sp,G)
+    
+
+    for i in range(k):
+            
+            ID = cen.index(max(cen))
+            G.nodes[nb[ID]]['blocked']='True'
+            cen.pop(ID)
+            nb.pop(ID)         
             
 def Random_TRuth_comp(Graphe,k):
     sp=[]
     search_spreaders(Graphe,sp)
-    nb=neighbor(sp,Graphe)
+    nb,d,cen=neighbor(sp,Graphe)
     size=len(nb)
     if k > size :
        k=size-1
@@ -588,6 +638,35 @@ def Random_TRuth_comp(Graphe,k):
         Graphe.nodes[nb[s]]['state']='infected'
         nb.pop(s)
         size-=1
+def MaxDegree_TRuth_comp(Graphe,K):
+    sp=[]
+    search_spreaders(Graphe,sp)
+    nb,d,cen=neighbor(sp,Graphe)
+    size=len(nb)
+    k=K
+    if k > size :
+       k=size-1
+    for i in range(k):
+        s = d.index(max(d))
+        Graphe.nodes[nb[s]]['Protector']='True'
+        Graphe.nodes[nb[s]]['state']='infected'
+        nb.pop(s)
+        d.pop(s)
+def Centrality_TRuth_comp(Graphe,K):
+    sp=[]
+    search_spreaders(Graphe,sp)
+    nb,d,cen=neighbor(sp,Graphe)
+    size=len(nb)
+    k=K
+    if k > size :
+       k=size-1
+    for i in range(k):
+        s = cen.index(max(cen))
+        Graphe.nodes[nb[s]]['Protector']='True'
+        Graphe.nodes[nb[s]]['state']='infected'
+        nb.pop(s)
+        cen.pop(s)
+       
 def blocked(G):
     
     L=[]
@@ -619,26 +698,27 @@ if __name__ == '__main__':
     #g=json_graph.node_link_graph(Small_World_networks(Nodes,K,P))
     #g=json_graph.node_link_graph(Random_networks(Nodes,P))
     g=json_graph.node_link_graph(facebook_graph())
+    
     #print(g.nodes[12]['neighbors'])
     G=[]
-    G.append(g)
-    G.append(g)
-    G.append(g)
-    G.append(g)
-    G.append(g)
+    m=['BNLSM'\
+      ,'BNLS','BNLSCen','TCSM','TCS','TCSCen','NP']
+    
+    for i in range(len(m)):
+        G.append(g)
+
+    
     Nodes=len(g.nodes)
     static="Nodes :{},Edegs:{}."
     percentage=5 #1% of popularity" is infected 
-    NumOFsumi=10
+    NumOFsumi=100
     beta=0.2
     omega=0
     juge=0.1
     delta=0
-    K=int(Nodes*0.35)
+    K=int(Nodes*0.1)
     print(K)
     Tdet=1
-    m=['BNLS','TCS','NP','MDBNLS']
     
     simulation_strategy(1,  K, Tdet, m,G)
     plt.show()
-
