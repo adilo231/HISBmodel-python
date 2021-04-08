@@ -1,5 +1,6 @@
 from networkx.readwrite import json_graph
 import networkx as nx
+import numpy as np
 #-----------------------------------------
   # g = nx.barabasi_albert_graph(N, M)
   # g= nx.watts_strogatz_graph(N,K,P)
@@ -44,6 +45,13 @@ def Small_World_networks(N=300,K=10,P=0.3):
     g= nx.watts_strogatz_graph(N,K,P)
     return graphe_TO_json(g)
 
+def facebook_graph():
+    FielName="C:/Users/RAMZI/Desktop/PFE/Application/flask/graphs/facebook.txt"
+    Graphtype=nx.DiGraph()
+    g= nx.read_edgelist(FielName,create_using=Graphtype,nodetype=int)   
+    return graphe_TO_json(g)
+
+
 
 def graphe_TO_json(g):
     
@@ -52,7 +60,7 @@ def graphe_TO_json(g):
     data['links'] = [ {"source":u,"target":v,"weight":(g.degree[u]+g.degree[v])/2} for u,v in g.edges ]
     return data
 
-print(Small_World_networks(100)["nodes"][99])
+
 
 #n= 300           # Number of nodes in graph
 #alpha=0.41       # Probability for adding a new node connected to an existing node chosen randomly according to the in-degree distribution.

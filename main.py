@@ -22,7 +22,7 @@ typeOfGraph=["small world","scale free","random"]
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('model_HISB.html')
 
 @app.route('/model_propagation', methods=['POST'])
 def model_propagation():
@@ -61,6 +61,7 @@ def model_propagation():
 def gene_graph():
     if request.method== "POST":
         global graph
+        graph=gene.facebook_graph()
         #data request format is json {model:"xx",Probability:"float",Infected:[id of nodes]}
        # data=request.get_json(force=True)
         #type of model{LT or IC}

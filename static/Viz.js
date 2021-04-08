@@ -1,333 +1,853 @@
-     
-     
-      $(function() {
+//  G= $.getJSON("HISBmodel/G.json", function(data) {
+
+
+//      return data;
+
+// });
+// g=JSON.parse(G);
+// console.log(g);
+$(function(){
+    var G;
+    
+    var data={
+      "type": "small world",
+      "proba": 0.3,
+      "neighbors":10,
+      "NbrOFnoeds":300
+    };
+    $.ajax({
+    url:"/gene_graph",
+    type:"POST",
+    contentType: 'application/json; charset=utf-8',
+    data:JSON.stringify(data),
+    dataType:"json",
+    success:function(data)
+    {
+      G=data;
+      int(G);
+    }
+    
+    });
+    function int(G){
+    var valid_data = 1;
+    var running = 0;
+    var running1 = 0;
+    var NodeSelected = 0;
+    var time_interval = 10;
+    var count = 0;
+    var timeseries;
+    var End = 0;
+    var Statistical_anal=0;
+    
+    var NodeDeg=[];
+    var nodeArray = G.nodes;
+    var edgeArray = G.links;
+    var ListInfectedNodes = [];
+    var Stat;
+    
+    var time = 0.125;
+    
+    var sir_color = { S: "#0000ff", I: "#ff0000", R: "#08b808", RuP: "#0f00f0" }
+    var Opinion_color = { N: "#0000ff", Su: "#039b8b", D: "#bbb01b" }
+    
+    var epi_state = { S: nodeArray.length, I: 0, R: 0, OpP: 0, OpD: 0, RuP: 0 };
+    
+    Stat={
+      DD: { label: "Degree Distribution", color: "#0000ff", data: [] },
+      ADD: { label: "Accepted Rumors", color: "#0000ff", data: [] },
+      SDD: { label: "Sent Rumors", color: "#ff00ff", data: [] },
+    
+    };
+    function reset_history() {
+      timeseries = {
+        S: { label: "S", color: sir_color.S, data: [] },
+        I: { label: "Spreaders", color: sir_color.I, data: [] },
+        R: { label: "Infected nodes", color: sir_color.R, data: [] },
+        RuP: { label: "Rumor Popularity", color: sir_color.RuP, data: [] },
+        OpP: { label: "Supporting Opinion", color: Opinion_color.Su, data: [] },
+        OpD: { label: "Denying Opinion", color: Opinion_color.D, data: [] },
+      };
+    
+      timeseries.S.data.push([count, epi_state.S]);
+      timeseries.I.data.push([count, epi_state.I]);
+      timeseries.R.data.push([count, epi_state.R]);
+      timeseries.RuP.data.push([count, epi_state.RuP]);
+      timeseries.OpP.data.push([count, epi_state.OpD]);
+      timeseries.OpD.data.push([count, epi_state.OpD]);
+    }
+    
+    reset_history();
+    // pour dessier les graphes resutat 1
+    var plotOptions = {
+      lines: { show: true },
+      
+      xaxis: { min: 0 },
+      series: { shadowSize: 0 }
+    
+    };
+    // pour dessier les graphes statistique 
+    var plotOptions2 = {
+      lines: { show: false },
+      points: { show: true },
+      xaxis: { min: 0 },
+      series: { shadowSize: 0 }
+    
+    };
+    
+    var plot = $.plot($("#epicurves"), [], plotOptions);
+    var plot2 = $.plot($("#Infcurves2"), [], plotOptions);
+    var plotRP = $.plot($("#RumorPopuCurves"), [], plotOptions);
+    var plotOp = $.plot($("#OpinionCurves"), [], plotOptions);
+    var plotDD = $.plot($("#Nodes_degree_distribution"), [], plotOptions2);
+    var plotARDD = $.plot($("#Acc_RumorDD"), [], plotOptions2);
+    var plotSRDD = $.plot($("#Sent_RumorDD"), [], plotOptions2);
+    
+    
+    
+    
+    function getRandomIntInclusive(min, max) {
+      min = Math.ceil(min);
+      max = Math.floor(max);
+      return (Math.floor(Math.random() * (max - min + 1)) + min) / 100; //The maximum is inclusive and the minimum is inclusive 
+    }
+    
+    var kArray = [];
+    var Node_opinion = [];
+    
+    for (i in nodeArray) {
+      kArray[nodeArray[i].id] = 0;
+      nodeArray[i].Adj = [];
+      
+    }
+    
+    for (i in edgeArray) {
+      s = edgeArray[i].source;
+      t = edgeArray[i].target;
+      kArray[s]++;
+      kArray[t]++;
+      nodeArray[s].Adj[nodeArray[s].Adj.length] = t;
+      nodeArray[t].Adj[nodeArray[t].Adj.length] = s;
+    
+    }
+    
+    
+      
+      var MaxDeg=0;
+    
+    
+    for (i in nodeArray) {
+      nodeArray[i].k = kArray[i];
+      if (MaxDeg<nodeArray[i].k) {
+        MaxDeg=nodeArray[i].k;
         
-       
-        var Infected=[];//Infected List Initial
-        var graph ;  
-        var toggle = 0;// Toggle for ego networks on click (below).
-        var linkedByIndex = {};
-        var degreeSize ;
-        var link;
-        var node;
-        var color = ["red", "blue"]; //Blue=>for Nodes No Infected, Red=>for Nodes Infected
-        //---Initialization of graph**************************    
-        var data={
-            "type": "random",
-            "proba": 0.3,
-            "neighbors":7,
-            "NbrOFnoeds":300
-          };
-          $.ajax({
-          url:"/gene_graph",
-          type:"POST",
-          contentType: 'application/json; charset=utf-8',
-          data:JSON.stringify(data),
-          dataType:"json",
-          success:function(data)
-          {
-            graph=data;
-            init()   ;    }
-          
-          });
-              
-        //start propagation simulation********************************************
+      }
+      nodeArray[i].state = "S";
+      nodeArray[i].opinion = "N";
+      min = Number($("#Beta_min").val());
+      max = Number($("#Beta_max").val());
+      nodeArray[i].beta = getRandomIntInclusive(min * 100, max * 100);
+      min = Number($("#Omega_min").val());
+      max = Number($("#Omega_max").val());
+      nodeArray[i].omega = getRandomIntInclusive(min * 100, max * 100);
+      min = Number($("#Delta_min").val());
+      max = Number($("#Delta_max").val());
+      nodeArray[i].delta = getRandomIntInclusive(min * 100, max * 100);
+      min = Number($("#J_min").val());
+      max = Number($("#J_max").val());
+      nodeArray[i].j = getRandomIntInclusive(min * 100, max * 100);
+      nodeArray[i].F_j = nodeArray[i].j;
+      nodeArray[i].Infetime = 0;
+      nodeArray[i].NbrAccpR = 0;
+      nodeArray[i].NbrAccptDR = 0;
+      nodeArray[i].NbrSendR = 0;
+      nodeArray[i].ColorNode = "#00f";
+    
+    
+    }
+    
+    for (let index = 1; index <= MaxDeg; index++) {
+      NodeDeg[index]=0;
+      
+     
+    }
+    
+    for (i in nodeArray) {
+      NodeDeg[nodeArray[i].k]++;
+      
+    }
+    
+    for (let index = 1; index <= MaxDeg; index++) {
+      if (NodeDeg[index] !=0 ) {
+        Stat.DD.data.push([index, NodeDeg[index]]); 
+      }
+      
+    }
+    
+    plotDD.setData([Stat.DD]);
+    plotDD.setupGrid();
+    plotDD.draw();
+    
+    
+    
+    var div = d3.select("body").append("div")
+      .attr("class", "tooltip")
+      .style("opacity", 0);
+    
+    var w = "100%";
+    var h = 650;
+    var vis2 = d3.select("#graph-layout_opinion")
+      .append("svg:svg")
+      .attr("width", w)
+      .attr("height", h)
+      .call(d3.behavior.zoom().on("zoom", function () {
+        vis2.attr("transform", "translate(" + d3.event.translate + ")" + " scale(" + d3.event.scale + ")")
+      }))
+      .append("g");
+    
+    var vis = d3.select("#graph-layout")
+      .append("svg:svg")
+      .attr("width", w)
+      .attr("height", h)
+      .call(d3.behavior.zoom().on("zoom", function () {
+        vis.attr("transform", "translate(" + d3.event.translate + ")" + " scale(" + d3.event.scale + ")")
+      }))
+      .append("g");
+    
+    var force2 = d3.layout.force()
+      .charge(-50)
+      .linkStrength(0.5)
+      .friction(0.6)
+      .gravity(0.02)
+      .linkDistance(100)
+      .nodes(nodeArray)
+      .links(edgeArray)
+      .size([300, h]);
+    
+    var force = d3.layout.force()
+      .charge(-200)
+      .linkStrength(0.5)
+      .friction(0.5)
+      .gravity(0.02)
+      .linkDistance(100)
+      .nodes(nodeArray)
+      .links(edgeArray)
+      .size([300, h]);
+    
+    
+    
+    
+    
+    
+    
+    force.on("tick", function () {
+      vis.selectAll("line.link")
+        .attr("x1", function (d) { return d.source.x; })
+        .attr("y1", function (d) { return d.source.y; })
+        .attr("x2", function (d) { return d.target.x; })
+        .attr("y2", function (d) { return d.target.y; });
+    
+      vis.selectAll("circle.node")
+        .attr("cx", function (d) { return d.x; })
+        .attr("cy", function (d) { return d.y; })
+        .style("fill", function (d) { return d.ColorNode; });
+    });
+    
+    force2.on("tick", function () {
+      vis2.selectAll("line.link")
+        .attr("x1", function (d) { return d.source.x; })
+        .attr("y1", function (d) { return d.source.y; })
+        .attr("x2", function (d) { return d.target.x; })
+        .attr("y2", function (d) { return d.target.y; });
+    
+      vis2.selectAll("circle.node")
+        .attr("cx", function (d) { return d.x; })
+        .attr("cy", function (d) { return d.y; })
+        .style("fill", function (d) { return Opinion_color[d.opinion]; });
+    });
+    
+    
+    
+    
+    
+    $("#Time_sime").val(time_interval)
+    $("#Time_sime").keyup(update_Sim_time);
+    
+    
+    update_graph();
+    update_plot();
+    update_counters();
+    
+    $("#reset-button").click(reset_all);
+    $("#Start-button").click(Start_propagation);
+    $("#Pause-button").click(Pause_sim);
+    function Pause_sim() {
+      $('#Pause-button').prop('disabled', true);
+      if (running == 1) {
+        running = 0;
+      }
+      $('#Start-button').prop('disabled', false);
+    }
+    
+    
+    
+    function update_graph() {
+    
+      x = vis.selectAll("line.link").data(edgeArray, function (d) { return d.source.name + "-" + d.target.name; });
+      x.enter().insert("svg:line", "circle.node")
+        .attr("class", "link")
+        .attr("x1", function (d) { return d.source.x; })
+        .attr("y1", function (d) { return d.source.y; })
+        .attr("x2", function (d) { return d.target.x; })
+        .attr("y2", function (d) { return d.target.y; });
+      x.exit().remove();
+    
+    
+    
+      x = vis.selectAll("circle.node").data(nodeArray, function (d) { return d.name; });
+      x.enter().insert("svg:circle")
+        .attr("class", "node")
+        .attr("cx", function (d) { return d.x; })
+        .attr("cy", function (d) { return d.y; })
+        .attr("r", function (d) { return 4 * Math.sqrt(d.k); })
+        .style("fill", function (d) { return d.ColorNode; })
+        .call(force.drag)
+        .on("click", function (d, i) {
          
-        //Visialization Network******************
-           //div Of Network
-            var svg = d3.select("svg"),
-                width = +svg.attr("width"),
-                height = +svg.attr("height");
-            // Call zoom for svg container.
-            //svg.call(d3.zoom().on('zoom', zoomed));
-           
-           
-            //simulation
-            var simulation = d3.forceSimulation()
-            .force("link", d3.forceLink())//Or to use names rather than indices: .id(function(d) { return d.id; }))
-            .force("charge", d3.forceManyBody().strength([-100]).distanceMax([250]))
-            .force("center", d3.forceCenter(width / 2, height / 2));
-             //Container
-            var container = svg.append('g');
-            // Create form for search nodes (see function below).
-            var search = d3.select("body").append('form').attr('onsubmit', 'return false;');
-        
-            var box = search.append('input')
-                .attr('type', 'text')
-                .attr('id', 'searchTerm')
-                .attr('placeholder', 'Type to search...');
-        
-             var button = search.append('input')
-                .attr('type', 'button')
-                .attr('value', 'Search')
-                .on('click', function () { searchNodes(); });
-                var button1 = search.append('input')
-                .attr('type', 'button')
-                .attr('value', 'start')
-                .on('click', function () { startOFpropagtion(); });
-             // A slider (using only d3 and HTML5) that removes nodes below the input threshold.
-            var slider = d3.select('body').append('p').text('Edge Weight Threshold: ');
-            // A function to test if two nodes are neighboring.
-            function neighboring(a, b) {
-                return linkedByIndex[a.index + ',' + b.index];
-            }
-            function initializeDisplay(){
-                link = container.append("g")
-                 .attr("class", "links")
-                 .selectAll("line")
-                 .data(graph.links, function(d) { return d.source + ", " + d.target;})
-                 .enter().append("line")
-                 .attr('class', 'link');
-           
-                node = container.append("g")
-                 .attr("class", "nodes")
-                 .selectAll("circle")
-                 .data(graph.nodes)
-                 .enter().append("circle")
-              // Calculate degree centrality within JavaScript.
-              //.attr("r", function(d, i) { count = 0; graph.links.forEach(function(l) { if (l.source == i || l.target == i) { count += 1;}; }); return size(count);})
-              // Use degree centrality from NetworkX in json.
-              .attr('r', function(d, i) { return degreeSize(d.degree); })   
-              .attr("fill", color[1])
-              .attr('class', 'node') 
-              .attr('id',function(d) { return "node"+d.id; })     
-              // On click, toggle ego networks for the selected node.
-              .on('dblclick', function(d, i) {
-                    if (toggle == 0) {
-                        // Ternary operator restyles links and nodes if they are adjacent.
-                        d3.selectAll('.link').style('stroke-opacity', function (l) {
-                            return l.target == d || l.source == d ? 1 : 0.1;
-                        });
-                        d3.selectAll('.node').style('opacity', function (n) {
-                            return neighboring(d, n) ? 1 : 0.1;
-                        });
-                        d3.select(this).style("opacity", 1);
-                              
-                       
-                       /*d3.selectAll('.link').transition().ease(d3.easeLinear)        
-                       .duration(1000).delay(2000).style('stroke-opacity', '0.6');
-                        d3.selectAll('.node').transition().ease(d3.easeLinear)       
-                        .duration(1000).delay(2000).style('opacity', '1');*/
-                        toggle = 1;
-                    }
-                    else{
-                        // Restore nodes and links to normal opacity.
-                        d3.selectAll('.link').style('stroke-opacity', '0.6');
-                        d3.selectAll('.node').style('opacity', '1');
-                        toggle = 0;
-                }
-                    
-                })
-               
-                .on('click',function(){
-                    d3.select(this)
-                    .call(Status);
-                })
-                .call(d3.drag()
-                    .on("start", dragstarted)
-                    .on("drag", dragged)
-                    .on("end", dragended));
-          
-            node.append("title")
-                .text(function(d) { return "Node:" + d.id + "\n" + "Degree: " + d.degree + "\n" + "Infected: " + d.infected;});
-          
-            }
-            //function for chang color of node
-           
-            function Status(element){
-               element.style("fill", function (d) {
-                 if(d.infected==true)
-                 {//if a node is infected
-                    Infected.pop(d.id);
-                    d.infected=false;
-                    return color[1];
-                 }
-                 else{
-                    Infected.push(d.id);
-                    d.infected=true;
-                    return color[0];
-                 }
-                
-               });
-            element.select('title').text(function(d) { return "Node:" + d.id + "\n" + "Degree: " + d.degree + "\n" + "Infected: " + d.infected;});
-             
-
-            }
-            function initializeSimulation(data) {
-                simulation
-                .nodes(graph.nodes)
-                .on("tick", ticked)
-                .force("link")
-                .links(data);
-
-            }
-            function ticked() {
-                link
-                    .attr("x1", function(d) { return d.source.x; })
-                    .attr("y1", function(d) { return d.source.y; })
-                    .attr("x2", function(d) { return d.target.x; })
-                    .attr("y2", function(d) { return d.target.y; });
-            
-                node
-                    .attr("cx", function(d) { return d.x; })
-                    .attr("cy", function(d) { return d.y; });
-              }
-            function DynamDraph(){
-                slider.append('label')
-                      .attr('for', 'threshold')
-                      .text('1');
-                  slider.append('input')
-                      .attr('type', 'range')
-                      .attr('min', d3.min(graph.links, function(d) {return d.weight; }))
-                      .attr('max', d3.max(graph.links, function(d) {return d.weight; }))
-                      .attr('value', d3.min(graph.links, function(d) {return d.weight; }))
-                      .attr('id', 'threshold')
-                      .style('width', '50%')
-                      .style('display', 'block')
-                      .on('input', function () { 
-                          var threshold = this.value;
-              
-                          d3.select('label').text(threshold);
-                          // Find the links that are at or above the threshold.
-                          var newData = [];
-                          graph.links.forEach( function (d) {
-                              if (d.weight >= threshold) {newData.push(d); };
-                          });
-                          // Data join with only those new links.
-                          link = link.data(newData, function(d) {return d.source + ', ' + d.target;});
-                          link.exit().remove();
-                          var linkEnter = link.enter().append('line').attr('class', 'link');
-                          link = linkEnter.merge(link);
-                          node = node.data(graph.nodes);
-                          // Restart simulation with new link data.
-                          initializeSimulation(newData);
-                          simulation.alphaTarget(0.1).restart();
-              
-                      });
-            }
-        /* Initialisation  */
-            function init() {
-                // Make object of all neighboring nodes.
-                graph.links.forEach(function(d) {
-                    linkedByIndex[d.source + ',' + d.target] = 1;
-                    linkedByIndex[d.target + ',' + d.source] = 1;
-                });
-                // Linear scale for degree centrality.
-                 degreeSize = d3.scaleLinear()
-                    .domain([d3.min(graph.nodes, function(d) {return d.degree; }),d3.max(graph.nodes, function(d) {return d.degree; })])
-                    .range([8,25]);
-                // Collision detection based on degree centrality.
-                simulation.force("collide", d3.forceCollide().radius( function (d) { return degreeSize(d.degree); }));
-                initializeDisplay();
-                initializeSimulation(graph.links); 
-                DynamDraph();
-                  // A dropdown menu with three different centrality measures, calculated in NetworkX.
-                  // Accounts for node collision.
-                  var dropdown = d3.select('body').append('div')
-                      .append('select')
-                      .on('change', function() { 
-                          var centrality = this.value;
-                          var centralitySize = d3.scaleLinear()
-                              .domain([d3.min(graph.nodes, function(d) { return d[centrality]; }), d3.max(graph.nodes, function(d) { return d[centrality]; })])
-                              .range([8,25]);
-                          node.attr('r', function(d) { return centralitySize(d[centrality]); } );  
-                          // Recalculate collision detection based on selected centrality.
-                          simulation.force("collide", d3.forceCollide().radius( function (d) { return centralitySize(d[centrality]); }));
-                          simulation.alphaTarget(0.1).restart();
-                      });
-              
-                  dropdown.selectAll('option')
-                      .data(['Degree Centrality', 'Betweenness Centrality', 'Eigenvector Centrality'])
-                      .enter().append('option')
-                      .attr('value', function(d) { return d.split(' ')[0].toLowerCase(); })
-                      .text(function(d) { return d; });
-              
-              };
-              var diffusion=[];
-              var anim;
-              var nbr=0;
-              function startOFpropagtion(){
-                
-                //data to start simulation{TypeOfmodel,Probability,Infected nodes}
-               var data={
-                        "model": "IC",
-                        "Probability": 0.3,
-                        "Infected":Infected
-                    };
-                $.ajax({
-                    url:"/diffusion",
-                    method:"POST",
-                    contentType: 'application/json; charset=utf-8',
-                    data:JSON.stringify(data),
-                    dataType:"json",
-                    success:function(data)
-                    {
-                        
-                    for(var i=0 ;i<data.length;i++){
-                         diffusion.push(data[i]);
-                    }
-                    
-                     animation();
-                   }
-                      
-                });
-            }
-                
-            function animation() {
-               anim=setInterval(() => {
-                start();  
-                 
-                }
-                , 1500);
-            }
-            function start() {
-                nbr++; 
-                var vol=diffusion[nbr];
-               
-                if(nbr>=diffusion.length-1){
-                  clearInterval(anim);
-                  
-                 }
-                else
-                  for(var id=0;id<vol.length;id++){
-                    Status(d3.select("#node"+vol[id]));
-                    //console.log(vol[id]);
-                  }
-                
-            }
-              function dragstarted(d) {
-                if (!d3.event.active) simulation.alphaTarget(0.3).restart();
-                d.fx = d.x;
-                d.fy = d.y;
-              }
-              
-              function dragged(d) {
-                d.fx = d3.event.x;
-                d.fy = d3.event.y;
-              }
-              
-              function dragended(d) {
-                if (!d3.event.active) simulation.alphaTarget(0);
-                d.fx = null;
-                d.fy = null;
-              }
-              
-              // Zooming function translates the size of the svg container.
-             function zoomed() {
-                    container.attr("transform", "translate(" + d3.event.transform.x + ", " + d3.event.transform.y + ") scale(" + d3.event.transform.k + ")");
-             }
-              
-              // Search for nodes by making all unmatched nodes temporarily transparent.
-            function searchNodes() {
-                  var term = document.getElementById('searchTerm').value;
-                  var selected = container.selectAll('.node').filter(function (d, i) {
-                      return d.degree!=term ;});
-                  selected.style('opacity', '0');
-                  var link = container.selectAll('.link');
-                  link.style('stroke-opacity', '0');
-                  d3.selectAll('.node').transition()
-                      .duration(5000)
-                      .style('opacity', '1');
-                  d3.selectAll('.link').transition().duration(5000).style('stroke-opacity', '0.6');
-            }
+          if (running == 0 && valid_data == 1 && d.state == "S") {
+            d.opinion = "Su";
+            epi_state.OpP++;
+            d.state = "I";
+            epi_state.S--;
+            epi_state.RuP += d.k;
+            epi_state.I++;
+            NodeSelected = 1;
+            d.Infetime = time;
+            d.NbrAccpR++;
+            ListInfectedNodes[ListInfectedNodes.length] = i;
+            d.ColorNode = "#f00";
+          }
+          update_counters();
+          update_plot();
+        })
+        .on("mouseover", function (d) {
+          div.transition()
+            .duration(200)
+            .style("opacity", .9);
+          div.html("Node Id: " + d.name + "<br/>" + "Node degree: " + d.k
+            + "<br/>" + "Beta: " + d.beta
+            + "<br/>" + "omega: " + d.omega
+            + "<br/>" + "delta: " + d.delta
+            + "<br/>" + "delta: " + d.j
+            + "<br/>" + "Color: " + d.ColorNode)
+            .style("left", (d3.event.pageX+50) + "px")
+            .style("top", (d3.event.pageY-50) + "px");
+        })
+        .on("mouseout", function (d) {
+          div.transition()
+            .duration(500)
+            .style("opacity", 0);
         });
+    
+      x.exit().remove();
+      force.start();
+    
+      x = vis2.selectAll("line.link").data(edgeArray, function (d) { return d.source.name + "-" + d.target.name; });
+      x.enter().insert("svg:line", "circle.node")
+        .attr("class", "link")
+        .attr("x1", function (d) { return d.source.x; })
+        .attr("y1", function (d) { return d.source.y; })
+        .attr("x2", function (d) { return d.target.x; })
+        .attr("y2", function (d) { return d.target.y; });
+      x.exit().remove();
+    
+    
+    
+      x = vis2.selectAll("circle.node").data(nodeArray, function (d) { return d.name; });
+      x.enter().insert("svg:circle")
+        .attr("class", "node")
+        .attr("cx", function (d) { return d.x; })
+        .attr("cy", function (d) { return d.y; })
+        .attr("r", function (d) { return 4 * Math.sqrt(d.k); })
+        .style("fill", function (d) { return d.ColorNode; })
+        .call(force2.drag)
+        .on("click", function (d, i) {
+          if (running == 0 && valid_data == 1 && d.state == "S") {
+            d.opinion = "Su";
+            d.state = "I";
+            epi_state.OpP++;
+            epi_state.S--;
+            epi_state.RuP += d.k;
+            epi_state.I++;
+            d.NbrAccpR++;
+            NodeSelected = 1;
+            d.Infetime = time;
+            ListInfectedNodes[ListInfectedNodes.length] = i;
+            d.opinion = "Su";
+            d.state = "I";
+            d.ColorNode = "#f00";
+          }
+          else {
+            if (running == 0 && valid_data == 1 && d.opinion == "D") {
+              d.opinion = "Su";
+              epi_state.OpP++;
+              epi_state.OpD--;
+            }
+            else {
+              d.opinion = "D";
+              epi_state.OpP--;
+              epi_state.OpD++;
+            }
+          }
+          update_counters();
+          update_plot();
+        })
+        .on("mouseover", function (d) {
+          div.transition()
+            .duration(200)
+            .style("opacity", .9);
+          div.html("Node Id: " + d.name + "<br/>"
+            + "Node degree: " + d.k + "<br/>"
+            + "Nbr of Acc. rumor: " + d.NbrAccpR + "<br/>"
+            + "Nbr of Sent rumor: " + d.NbrSendR + "<br/>"
+            + "Nbr of Acc. -Opi " + d.NbrAccptDR)
+            .style("left", (d3.event.pageX + 50) + "px")
+            .style("top", (d3.event.pageY - 50 ) + "px");
+        })
+        .on("mouseout", function (d) {
+          div.transition()
+            .duration(500)
+            .style("opacity", 0);
+        });
+      x.exit().remove();
+      force2.start();
+    
+    }
+    
+    function update_plot() {
+      plot.setData([timeseries.I]);
+      plot.setupGrid();
+      plot.draw();
+    
+      plot2.setData([timeseries.R]);
+      plot2.setupGrid();
+      plot2.draw();
+    
+      plotRP.setData([timeseries.OpD, timeseries.OpP]);
+      plotRP.setupGrid();
+      plotRP.draw();
+    
+    
+      plotOp.setData([timeseries.RuP]);
+      plotOp.setupGrid();
+      plotOp.draw();
+    
+    }
+    
+    
+    function update_counters() {
+      $("#count_I").html(epi_state.I);
+      $("#count_R").html(epi_state.R);
+      $("#count_S").html(epi_state.S);
+      $("#count_SO").html(epi_state.OpP);
+      $("#count_DO").html(epi_state.OpD);
+    
+    }
+    
+    
+    
+    function update_Sim_time() {
+      p = Number($("#Time_sime").val());
+      if (isNaN(p) || p < 0.0 || p > 2000) {
+        valid_data = 0;
+        $("#Time_sime").css("background-color", "#f88");
+      } else {
+        time_interval = p;
+        valid_data = 1;
+    
+        $("#Time_sime").css("background-color", "#fff");
+      }
+      setInterval(run_SIR, time_interval);
+    }
+    function Start_propagation() {
+     /* if (End == 1) {
+            rest_all();
+            if (NodeSelected == 1) {
+              $("#start-text").fadeOut();
+              $("#start-text2").fadeOut();
+    
+              running = 1;
+            }
+            else {
+              var i = 1;
+              while (i <= 10) {
+                ID = Math.floor(Math.random() * nodeArray.length)
+                if (nodeArray[ID].Infetime == 0) {
+                  nodeArray[ID].Infetime = 0.125;
+                  nodeArray[ID].NbrAccpR++;
+                  ListInfectedNodes[ListInfectedNodes.length] = ID;
+    
+                  if (Math.random() > 0.5) {
+                    nodeArray[ID].opinion = "Su";
+                    epi_state.OpP++;
+                  }
+                  else {
+                    nodeArray[ID].opinion = "D";
+                    nodeArray[ID].NbrAccptDR++;
+                    epi_state.OpD++;
+                  }
+                  nodeArray[ID].state = "I"; epi_state.S--; epi_state.I++; epi_state.RuP += nodeArray[ID].k; NodeSelected = 1;
+                  update_graph();
+                  update_counters();
+                  i++;
+                }
+              }
+              NodeSelected == 1;
+              $("#start-text").fadeOut();
+              $("#start-text2").fadeOut();
+              running = 1;
+            }
+      }
+      else {*/
+        if (NodeSelected == 1) {
+          $("#start-text").fadeOut();
+          $("#start-text2").fadeOut();
+           $('#Pause-button').prop('disabled', false);
+          $('#Start-button').prop('disabled', true); 
+          setInterval(run_HISBmodel, time_interval);
+          running = 1;
+        }
+      /*  else {
+          var i = 1;
+          while (i <= 10) {
+            ID = Math.floor(Math.random() * nodeArray.length)
+            if (nodeArray[ID].Infetime == 0) {
+              nodeArray[ID].state = "I";
+              nodeArray[ID].Infetime = 0.125;
+              ListInfectedNodes[ListInfectedNodes.length] = ID;
+              nodeArray[ID].NbrAccpR++;
+              if (Math.random() > 0.5) {
+    
+                nodeArray[ID].opinion = "Su";
+                epi_state.OpP++;
+              }
+              else {
+                nodeArray[ID].opinion = "D";
+                epi_state.OpD++;
+                nodeArray[ID].NbrAccptDR++;
+              }
+              epi_state.S--; epi_state.I++;
+              epi_state.RuP += nodeArray[ID].k;
+              NodeSelected = 1;
+              update_graph();
+              update_counters();
+              update_plot();
+    
+              i++;
+            }
+          }
+    
+          update_plot();
+          update_counters();
+          NodeSelected == 1;
+          $("#start-text").fadeOut();
+          $("#start-text2").fadeOut();
+          running = 1;
+        }*/
+      }
+      
+    
+    //}
+    
+    function UpdateOpinion(i) {
+    
+      var DecFactor = (nodeArray[i].F_j + (nodeArray[i].NbrAccptDR / nodeArray[i].NbrAccpR)) * 0.5;
+    
+     
+      if (nodeArray[i].opinion == "Su") epi_state.OpP--; else epi_state.OpD--;
+      if (Math.random() <= DecFactor) {
+        nodeArray[i].opinion = "D";
+        epi_state.OpD++;
+    
+    
+      }
+      else {
+        nodeArray[i].opinion = "Su";
+        epi_state.OpP++;
+    
+      }
+    
+    }
+    
+    function reset_all() {
+    
+      running = 0;
+      NodeSelected = 0;
+      count = 0;
+      End = 0;
+      epi_state = { S: nodeArray.length, I: 0, R: 0, OpP: 0, OpD: 0, RuP: 0 };
+      ListInfectedNodes = [];
+      time = 0.125;
+    
+      reset_history();
+      update_plot();
+    
+      update_counters();
+    
+      for (i in nodeArray) {
+        nodeArray[i].state = "S";
+        nodeArray[i].opinion = "N";
+        min = Number($("#Beta_min").val());
+        max = Number($("#Beta_max").val());
+        nodeArray[i].beta = getRandomIntInclusive(min * 100, max * 100);
+        min = Number($("#Omega_min").val());
+        max = Number($("#Omega_max").val());
+        nodeArray[i].omega = getRandomIntInclusive(min * 100, max * 100);
+        min = Number($("#Delta_min").val());
+        max = Number($("#Delta_max").val());
+        nodeArray[i].delta = getRandomIntInclusive(min * 100, max * 100);
+        min = Number($("#J_min").val());
+        max = Number($("#J_max").val());
+        nodeArray[i].j = getRandomIntInclusive(min * 100, max * 100);
+        nodeArray[i].Infetime = 0;
+        nodeArray[i].NbrAccpR = 0;
+        nodeArray[i].NbrAccptDR = 0;
+        nodeArray[i].NbrSendR = 0;
+        nodeArray[i].ColorNode = "#00f";
+    
+      }
+      update_graph();
+    
+      $("#start-text").fadeIn();
+      $("#start-text2").fadeIn();
+      $('#Start-button').prop('disabled', false);
+      $('#Pause-button').prop('disabled', false);
+    }
+    
+    
+    
+    function run_HISBmodel() {
+    
+      if (running == 0) {
+        return;
+      }
+    
+    
+    
+      epi_state.RuP = 0;
+      epi_state.I = 0;
+      var ID = 0;
+    
+      for (ID = ListInfectedNodes.length - 1; ID >= 0; ID--) {
+    
+        var i;
+        i = ListInfectedNodes[ID];
+    
+        NodeRelativeTime = time - nodeArray[i].Infetime;
+    
+        if (Math.exp(-NodeRelativeTime * nodeArray[i].beta) < 0.1) {
+          ListInfectedNodes.splice(ID, 1);
+          nodeArray[i].state = "R";
+    
+    
+    
+        }
+        else {
+    
+          var ActualAttraction;
+          ActualAttraction = Math.exp(-NodeRelativeTime * nodeArray[i].beta) * Math.abs(Math.sin(NodeRelativeTime * nodeArray[i].omega + nodeArray[i].delta));
+          UpdateColor(i, ActualAttraction);
+          epi_state.RuP += ActualAttraction * nodeArray[i].k;
+          var SendingProbability;
+          SendingProbability = ActualAttraction;
+    
+          var p = 0.35;
+    
+    
+          if (Math.random() <= SendingProbability) {
+    
+            epi_state.I += 1;
+    
+    
+    
+            for (let index = 0; index < nodeArray[i].Adj.length - 1; index++) {
+              j = nodeArray[i].Adj[index];
+    
+              if (Math.random() <= p) {
+                nodeArray[i].NbrSendR++;
+                AcceptanceProbability = nodeArray[i].k / (nodeArray[i].k + nodeArray[j].k) * 0.5;
+    
+                if (Math.random() <= AcceptanceProbability) {
+                  
+                  nodeArray[j].NbrAccpR++;
+    
+                  if (nodeArray[j].Infetime == 0) {
+                    epi_state.R++;
+                    epi_state.S--;
+                    nodeArray[j].Infetime = time;
+                    ListInfectedNodes[ListInfectedNodes.length] = j;
+                    nodeArray[j].opinion = nodeArray[i].opinion;
+                    nodeArray[j].state = "I";
+                    if (nodeArray[j].opinion == "Su") {
+                      epi_state.OpP++;
+    
+                    } else {
+                      epi_state.OpD++;
+                      nodeArray[j].NbrAccptDR++;
+    
+                    }
+                   
+    
+    
+                  }
+                  else {
+                    if (nodeArray[j].opinion == "D") nodeArray[j].NbrAccptDR++;
+                   
+                  }
+    
+    
+                }
+    
+              }
+    
+    
+            }
+            UpdateOpinion(i);
+          }
+    
+        }
+    
+    
+      }
+    
+      update_graph();
+    
+      count++;
+      time += 0.125;
+    
+      timeseries.S.data.push([time, epi_state.S]);
+      timeseries.I.data.push([time, epi_state.I]);
+      timeseries.R.data.push([time, epi_state.R]);
+      timeseries.RuP.data.push([time, epi_state.RuP]);
+      timeseries.OpP.data.push([time, epi_state.OpP]);
+      timeseries.OpD.data.push([time, epi_state.OpD]);
+      epi_state.I = 0;
+      update_plot();
+    
+      update_counters();
+    
+      if (ListInfectedNodes.length == 0) { Update_stat(); running = 0; End = 1; };
+    
+    
+    }
+    
+    
+    
+    
+    
+    
+    function UpdateColor(i, Atrraction) {
+      nodeArray[i].ColorNode = RGB2Color((256 * Atrraction), (256 * (1 - Atrraction)), 0);
+    }
+    
+    function RGB2Color(r, g, b) {
+      return 'rgb(' + Math.round(r) + ',' + Math.round(g) + ',' + Math.round(b) + ')';
+    }
+    Update_stat();
+    
+    function Update_stat() {
+      $("#Stat_NN").html(nodeArray.length);
+      var NbrEdge = 0;
+      var NbrRumorSent = 0;
+      var NbrRumorA = 0;
+      var b = 0;
+      var o = 0;
+      var h = 0;
+      var jB = 0;
+      var jA = 0;
+      var NPOS = 0;
+      var NDOS = 0;
+    
+    
+      for (let index = 0; index < nodeArray.length; index++) {
+        NbrEdge += nodeArray[index].k;
+        NbrRumorSent += nodeArray[index].NbrSendR;
+        NbrRumorA += nodeArray[index].NbrAccpR;
+        b += nodeArray[index].beta;
+        o += nodeArray[index].omega;
+        h += nodeArray[index].delta;
+        jB += nodeArray[index].j;
+        jA += nodeArray[index].F_j;
+        NDOS += nodeArray[index].NbrAccptDR;
+    
+      }
+      NPOS += NbrRumorA - NDOS;
+      $("#Stat_NE").html(NbrEdge);
+      $("#Stat_k").html(Math.floor(NbrEdge / nodeArray.length * 1000) / 1000);
+      $("#Stat_ASR").html(Math.floor(NbrRumorSent / nodeArray.length * 1000) / 1000);
+      $("#Stat_AAR").html(Math.floor(NbrRumorA / nodeArray.length * 1000) / 1000);
+      $("#Stat_AIBK").html(Math.floor(b / nodeArray.length * 1000) / 1000);
+      $("#Stat_AFR").html(Math.floor(o / nodeArray.length * 1000) / 1000);
+      $("#Stat_AHM").html(Math.floor(h / nodeArray.length * 1000) / 1000);
+      $("#JB").html(Math.floor(jB / nodeArray.length * 1000) / 1000);
+      $("#JA").html(Math.floor(jA / nodeArray.length * 1000) / 1000);
+      $("#Stat_NRR").html(epi_state.R);
+      $("#Stat_NnRR").html(epi_state.S);
+      $("#Stat_RLT").html(time - 0.125);
+      $("#Stat_SR").html(NbrRumorSent);
+      $("#Stat_AR").html(NbrRumorA);
+      $("#Stat_PO").html(NPOS);
+      $("#Stat_DO").html(NDOS);
+      update_Statistics() ;
+    
+    
+    }
+    
+    function update_Statistics() {
+      Stat.ADD.data=[];
+      Stat.SDD.data=[];
+    
+      plotSRDD.setData([Stat.SDD]);
+      plotSRDD.setupGrid();
+      plotSRDD.draw();
+    
+      plotARDD.setData([Stat.ADD]);
+      plotARDD.setupGrid();
+      plotARDD.draw();    
+    
+      var AccRuorDeg=[];
+      var SentRuorDeg=[];
+      for (let index = 0; index < nodeArray.length; index++) {
+        if (AccRuorDeg[nodeArray[index].k]== null)  AccRuorDeg[nodeArray[index].k]=nodeArray[index].NbrAccpR;else AccRuorDeg[nodeArray[index].k]+=nodeArray[index].NbrAccpR;
+        if (SentRuorDeg[nodeArray[index].k]== null)  SentRuorDeg[nodeArray[index].k]=nodeArray[index].NbrSendR;else SentRuorDeg[nodeArray[index].k]+=nodeArray[index].NbrSendR;
+        
+      }
+    
+    
+      for (let index = 1; index <= MaxDeg; index++) {
+        if (NodeDeg[index] !=0 ) {
+         
+          Stat.ADD.data.push([index, AccRuorDeg[index]/NodeDeg[index]]);
+          Stat.SDD.data.push([index, SentRuorDeg[index]/NodeDeg[index]]);
+          
+          
+        }
+        
+        
+      }
+     
+     
+    
+      
+      plotSRDD.setData([Stat.SDD]);
+      plotSRDD.setupGrid();
+      plotSRDD.draw();
+    
+      plotARDD.setData([Stat.ADD]);
+      plotARDD.setupGrid();
+      plotARDD.draw();
+    
+    
+    
+    }
+    }
+    });
