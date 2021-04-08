@@ -9,7 +9,7 @@ from matplotlib.ticker import NullFormatter
 import multiprocessing 
 from multiprocessing import Manager
 import math
-from pyvis.network import Network
+
 from flask.json import jsonify
 import math
 import scipy.sparse as sp
@@ -26,7 +26,7 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater):
     #Opinion:normal/denying/supporting
     #State:non_infected/infected/spreaders 
     #Statistical:{'NonInfected':NbrOFnodes,'Infected':**,'Spreaders':**,OpinionDenying':**,'OpinionSupporting':**,'RumorPopularity':**}
-  
+    print('hello HISB')
     ListInfectedNodes=Seed_Set[:]
     Opinion_Set=Opinion_Set[:]
     time=0.125
@@ -46,7 +46,7 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater):
     OpinionSupporting=0
     RumorPopularity=0
     InitParameters(Graph,paramater)
-   
+    setup=0
     for each  in ListInfectedNodes:
         Graph.nodes[each]['Infetime']=0.125 
         Graph.nodes[each]['state']='spreaders'
@@ -71,18 +71,20 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater):
     #if the list is empty we stop the propagation
     
     
-    while ListInfectedNodes: 
+    while ListInfectedNodes:
+      print('setup',setup) 
+      setup+=1
       RumorPopularity = 0
       Nbr_Spreaders = 0
       L=len(ListInfectedNodes)
       #evolution networks
       if stop==False:
+          #list of links at t+1
           link_predict=dynamique_graph(Graph,method=methods)
           if time1>time_control:
             time_control=time1
           else:
             stop=True
-      print("edegs:",len(Graph.edges))
       for X in reversed(range(0,L)):
         
         id = ListInfectedNodes[X]
@@ -469,7 +471,7 @@ def Scale_free_networks (N=300,M=10):
     return graphe_TO_json(g)
 
 def facebook_graph():
-    FielName="C:/Users/RAMZI/Desktop/PFE/Application/flask/graphs/facebook.txt"
+    FielName="graphs/facebook.txt"
     Graphtype=nx.DiGraph()
     g= nx.read_edgelist(FielName,create_using=Graphtype,nodetype=int)
     
@@ -596,7 +598,7 @@ def mask_test_edges(adj, test_frac=.01, prevent_disconnect=True):
     #assert np.diag(adj.todense()).sum() == 0
     g = nx.from_scipy_sparse_matrix(adj)
     
-    orig_num_cc = nx.number_connected_components(g)
+    #orig_num_cc = nx.number_connected_components(g)
     adj_triu = sp.triu(adj,k=1) # upper triangular portion of adj matrix
     adj_tuple = sparse_to_tuple(adj_triu) # (coords, values, shape), edges only 1 way
     edges = adj_tuple[0] # all edges, listed only once (not 2 ways)
@@ -608,8 +610,6 @@ def mask_test_edges(adj, test_frac=.01, prevent_disconnect=True):
     train_edges = set(edge_tuples) # initialize train_edges to have all edges
     test_edges = set()
     
-    print('num',num_test)
-    print('init',len(train_edges))
     # Iterate over shuffled edges, add to train/val sets
     np.random.shuffle(edge_tuples)
     for edge in edge_tuples:
@@ -621,7 +621,7 @@ def mask_test_edges(adj, test_frac=.01, prevent_disconnect=True):
         # If removing edge would disconnect a connected component, backtrack and move on
         g.remove_edge(node1, node2)
         if prevent_disconnect == True:
-            if nx.number_connected_components(g) > orig_num_cc:
+            if  nx.is_isolate(g,node1) or nx.is_isolate(g,node2) :
                 g.add_edge(node1, node2)
                 continue
 
@@ -635,8 +635,7 @@ def mask_test_edges(adj, test_frac=.01, prevent_disconnect=True):
         print ("Num. (test, val) edges requested: :",num_test)
         print ("Num. (test, val) edges returned: (", len(test_edges), ")")
 
-    if prevent_disconnect == True:
-        assert nx.number_connected_components(g) == orig_num_cc
+    
     test_edges_false = set()
     while len(test_edges_false) < num_test:
         idx_i = np.random.randint(0, adj.shape[0])
@@ -664,6 +663,7 @@ def mask_test_edges(adj, test_frac=.01, prevent_disconnect=True):
     test_edges = np.array([list(edge_tuple) for edge_tuple in test_edges])
     test_edges_false = np.array([list(edge_tuple) for edge_tuple in test_edges_false])   
     # NOTE: these edge lists only contain single direction of edge!
+    print('end split test')
     return adj_train, train_edges,test_edges,test_edges_false
 def sparse_to_tuple(sparse_mx):
     if not sp.isspmatrix_coo(sparse_mx):
@@ -672,25 +672,20 @@ def sparse_to_tuple(sparse_mx):
     values = sparse_mx.data
     shape = sparse_mx.shape
     return coords, values, shape
-def new_Link(matrix,ebunchi,ebunch):
+def new_Link(matrix,ebunch):
     new_link=[]
-    L=matrix.shape[0]
     #matrix symetric
-    if matrix.max()!=0:
-     for edges in ebunchi:
-            Tuple=(edges[0],edges[1])
-            #probability of new link matrix[edges[0]][edges[1]]
-            if matrix[edges[0]][edges[1]]>0:
-                if matrix[edges[0]][edges[1]]>np.random.rand(): 
-                    new_link.append(Tuple)
-                else:
-                    ebunch.append(Tuple)
-            else:
-              ebunch.append(Tuple)
-    else:
-        for edges in ebunchi:
-            Tuple=(edges[0],edges[1])
+    for u,v,p in matrix:
+          Tuple=(u,v)
+          #probability of new link matrix[edges[0]][edges[1]]
+          if p>0:
+              if p>np.random.rand(): 
+                  new_link.append(Tuple)
+              else:
+                  ebunch.append(Tuple)
+          else:
             ebunch.append(Tuple)
+    
     return new_link
 def get_ebunch(train_test_split):
     adj_train, train_edges,test_edges,test_edges_false = train_test_split
@@ -712,84 +707,72 @@ def split_test(test,frac):
     return test_split
 # Input: NetworkX training graph, train_test_split (from mask_test_edges)
 def adamic_adar_sc(g, ebunch):
-    if g.is_directed(): # Only works for undirected graphs
-        g= g.to_undirected()
-
-   # Unpack input
-    adj = nx.adjacency_matrix(g)
-    aa_matrix = np.zeros(adj.shape)
-    for u, v, p in nx.adamic_adar_index(g, ebunch=ebunch): # (u, v) = node indices, p = Adamic-Adar index
-        aa_matrix[u][v] = p
-        aa_matrix[v][u] = p # make sure it's symmetric
-    if aa_matrix.max()==0:
-       print('adamic --> predection none')
-    else:
-       aa_matrix = aa_matrix / aa_matrix.max() # Normalize matrix
-    return aa_matrix
+    return prediction_link(g,ebunch,'adamic')
 def resource_allocation_sc(g, ebunch):
-    if g.is_directed(): # Only works for undirected graphs
-       g= g.to_undirected()
-
-   # Unpack input
-    adj = nx.adjacency_matrix(g)
-    aa_matrix = np.zeros(adj.shape)
-    for u, v, p in nx.resource_allocation_index(g, ebunch=ebunch): # (u, v) = node indices, p = Adamic-Adar index
-        aa_matrix[u][v] = p
-        aa_matrix[v][u] = p # make sure it's symmetric
-    if aa_matrix.max()==0:
-       print('resource_allocat --> predection none')
-    else:
-       aa_matrix = aa_matrix / aa_matrix.max() # Normalize matrix
-    return aa_matrix
- 
+    return prediction_link(g,ebunch,'resource_allocation')
 # Input: NetworkX training graph, train_test_split (from mask_test_edges)
 def jaccard_coefficient_sc(g, ebunch):
-    if g.is_directed(): # Jaccard coef only works for undirected graphs
-        g = g.to_undirected()
-
-    # Unpack input
-
-    # Calculate scores
-    adj = nx.adjacency_matrix(g)
-    jc_matrix = np.zeros(adj.shape)
-    for u, v, p in nx.jaccard_coefficient(g, ebunch=ebunch): # (u, v) = node indices, p = Jaccard coefficient
-        jc_matrix[u][v] = p
-        jc_matrix[v][u] = p # make sure it's symmetric
-    if jc_matrix.max()==0:
-           print('jaccard -->predection none')
-    else:
-    
-      jc_matrix = jc_matrix / jc_matrix.max() # Normalize matrix
-
-    return jc_matrix
+    return prediction_link(g,ebunch,'jaccard')
 
 # Input: NetworkX training graph, train_test_split (from mask_test_edges)
 
 def preferential_attachment_sc(g, ebunch):
-    if g.is_directed(): # Only defined for undirected graphs
-        g = g.to_undirected()
+    return prediction_link(g,ebunch,'preferential')
 
-    # Unpack input
-    adj = nx.adjacency_matrix(g)
-    pa_matrix = np.zeros(adj.shape)
-    for u, v, p in nx.preferential_attachment(g, ebunch=ebunch): # (u, v) = node indices, p = Jaccard coefficient
-        pa_matrix[u][v] = p
-        pa_matrix[v][u] = p # make sure it's symmetric
-    if pa_matrix.max()==0:
-        print('preferential-->prediction none')
+def prediction_link(g,ebunch,method):
+    if g.is_directed(): # Only works for undirected graphs
+        g= g.to_undirected()
+   # Unpack input
+    matrix =[]
+    matrix_normalize =[]
+    max=0
+    if method=='adamic':
+        for u, v, p in nx.adamic_adar_index(g, ebunch=ebunch): # (u, v) = node indices, p = resource_allocation index
+            tupl=(u,v,p)
+            matrix.append(tupl) 
+            if max<p:
+               max=p
+    elif method=='jaccard':
+        for u, v, p in nx.jaccard_coefficient(g, ebunch=ebunch): # (u, v) = node indices, p = resource_allocation index
+            tupl=(u,v,p)
+            matrix.append(tupl) 
+            if max<p:
+               max=p
+    elif method=='preferential':
+        for u, v, p in nx.preferential_attachment(g, ebunch=ebunch): # (u, v) = node indices, p = resource_allocation index
+            tupl=(u,v,p)
+            matrix.append(tupl) 
+            if max<p:
+               max=p
+    elif method=='resource_allocation':
+        for u, v, p in nx.resource_allocation_index(g, ebunch=ebunch): # (u, v) = node indices, p = resource_allocation index
+            tupl=(u,v,p)
+            matrix.append(tupl) 
+            if max<p:
+               max=p
     else:
-       pa_matrix = pa_matrix / pa_matrix.max() # Normalize matrix
+        return max,matrix_normalize
 
-    return pa_matrix
-
+     # Normalize matrix
+    if max==0:
+       print(' predection none')
+    else:
+       for u, v, p in matrix: #u source v target p probability
+          d=p/max
+          tupl=(u,v,d)
+          matrix_normalize.append(tupl) 
+         
+    return max,matrix_normalize
 def test(train_test_split,method='adamic',split=0.025):
     result=[]
     adj_train, train_edges,test_edges,test_edges_false=train_test_split
-    g= nx.Graph(adj_train) 
+    g= nx.Graph(adj_train)
+    #40% of edges for test (hidden edges) 
     ebunch=get_ebunch(train_test_split)
+    #1% links added for each iteration
     frac=int(len(ebunch)*split)
     print("init---------------")
-    print("frac:",frac)
+    print("links added for each iteration:",frac)
     print("edges:",len(g.edges))
     print("tets_edges:",len(test_edges))
     print("tets_edges_false:",len(test_edges_false))
@@ -798,56 +781,69 @@ def test(train_test_split,method='adamic',split=0.025):
     if method=='adamic':
         while len(ebunch)>0: 
           ebunchi=split_test(ebunch,frac=frac)
-          matrix=adamic_adar_sc(g,ebunchi)
-          new_link=new_Link(matrix,ebunchi,ebunch)
+           # matrix=>1% of test edges (tuple(u,v,p))
+          max,matrix=adamic_adar_sc(g,ebunchi)
+           #new link added for networks
+          new_link=new_Link(matrix,ebunch)
+          #update networks
           g.add_edges_from(new_link)     
-          result.append({'ebunch':ebunchi,'matrix':matrix,'new_link':new_link,'method':method})
-          if matrix.max()==0:
-                 matrix=adamic_adar_sc(g,ebunch) 
-                 if matrix.max()==0:
-                     print('hi')
+          result.append({'matrix':matrix,'new_link':new_link,'method':method})
+          #test to avoid infinite loop
+          if max==0:
+                 max,matrix=adamic_adar_sc(g,ebunch) 
+                 if max==0:
+                     print('end prediction')
                      break
     elif method=='jaccard':
         while len(ebunch)>0:
           ebunchi=split_test(ebunch,frac=frac)
-          matrix=jaccard_coefficient_sc(g,ebunchi)
-          new_link=new_Link(matrix,ebunchi,ebunch)
+           # matrix=>1% of test edges (tuple(u,v,p))
+          max,matrix=jaccard_coefficient_sc(g,ebunchi)
+           #new link added for networks
+          new_link=new_Link(matrix,ebunch)
+          #update networks
           g.add_edges_from(new_link)
-          graph=nx.Graph(nx.adjacency_matrix(g))
-          result.append({'ebunch':ebunchi,'matrix':matrix,'new_link':new_link,'method':method,'graph':graph})   
-          if matrix.max()==0:
-                 matrix=jaccard_coefficient_sc(g,ebunch) 
-                 if matrix.max()==0:
-                     print('hi')
+          result.append({'matrix':matrix,'new_link':new_link,'method':method})   
+         #test to avoid infinite loop
+          if max==0:
+                 max,matrix=jaccard_coefficient_sc(g,ebunch) 
+                 if max==0:
+                     print('end prediction')
                      break
     elif method=='preferential':
         while len(ebunch)>0:
           ebunchi=split_test(ebunch,frac=frac)
-          matrix=preferential_attachment_sc(g,ebunchi)
-          new_link=new_Link(matrix,ebunchi,ebunch)
+           # matrix=>1% of test edges (tuple(u,v,p))
+          max,matrix=preferential_attachment_sc(g,ebunchi)
+           #new link added for networks
+          new_link=new_Link(matrix,ebunch)
+          #update networks
           g.add_edges_from(new_link)
-          graph=nx.Graph(nx.adjacency_matrix(g))
-          result.append({'ebunch':ebunchi,'matrix':matrix,'new_link':new_link,'method':method,'graph':graph})
-          if matrix.max()==0:
-                 matrix=preferential_attachment_sc(g,ebunch) 
-                 if matrix.max()==0:
-                     print('hi')
+          result.append({'matrix':matrix,'new_link':new_link,'method':method})
+          #test to avoid infinite loop
+          if max==0:
+                 max,matrix=preferential_attachment_sc(g,ebunch) 
+                 if max==0:
+                     print('end prediction')
                      break
     elif method=='resource_allocation':
         while len(ebunch)>0:
           ebunchi=split_test(ebunch,frac=frac)
-          matrix=resource_allocation_sc(g,ebunchi)
-          new_link=new_Link(matrix,ebunchi,ebunch)
+          # matrix=>1% of test edges (tuple(u,v,p))
+          max,matrix=resource_allocation_sc(g,ebunchi)
+          #new link added for networks
+          new_link=new_Link(matrix,ebunch)
+          #update networks
           g.add_edges_from(new_link)
-          graph=nx.Graph(nx.adjacency_matrix(g))
-          result.append({'ebunch':ebunchi,'matrix':matrix,'new_link':new_link,'method':method,'graph':graph})
-          if matrix.max()==0:
-                 matrix=resource_allocation_sc(g,ebunch) 
-                 if matrix.max()==0:
-                     print('hi')
+          result.append({'matrix':matrix,'new_link':new_link,'method':method})
+          #test to avoid infinite loop
+          if max==0:
+                 max,matrix=resource_allocation_sc(g,ebunch) 
+                 if max==0:
+                     print('end prediction')
                      break
     return result  
-      #stat.append(result)
+      
 
 
 def display_graph(x,G,pos_link=None,fals_link=None,new_link=None,method="adamic"):
@@ -911,11 +907,10 @@ def dynamique_graph_Result(g,method):
     adj = nx.adjacency_matrix(g)
     train_test_split=mask_test_edges(adj,test_frac=0.2)
     adj_train, train_edges,test_edges,test_edges_false=train_test_split
-   
-    display_graph(1,g,pos_link=list_tuple(train_edges,None,False),method='graphe init vs test graph')
+    #display_graph(1,g,pos_link=list_tuple(train_edges,None,False),method='graphe init vs test graph')
     g.remove_edges_from(test_edges)
    
-    display_graph(2,g,pos_link=list_tuple(test_edges,None,False),new_link=list_tuple(test_edges_false,None,False),method='test edges & new link ')
+    #display_graph(2,g,pos_link=list_tuple(test_edges,None,False),new_link=list_tuple(test_edges_false,None,False),method='test edges & new link ')
     #result 
     return test(train_test_split,method)
       
@@ -939,7 +934,7 @@ def dynamique_graph(g,method):
             print("evolution stoped")
             return None
     #prediction in  time1+1
-    return list_tuple(Result[time1-1]['ebunch'],Result[time1-1]['matrix'])
+    return Result[time1-1]['matrix']
 def filter_list(full_list, excludes):
     pos=[]
     neg=[]
@@ -956,28 +951,25 @@ def filter_list(full_list, excludes):
         if tuple not in pos:
            fals_link.append(tuple)
     return pos,neg,fals_link
-
-
-
-   
+  
 if __name__ == '__main__':
     
 
-       # use net.Graph() for undirected graph
+# use net.Graph() for undirected graph
 
 # How to read from a file. Note: if your egde weights are int, 
 # change float to int.
    #methods 'adamic','jaccard','preferential','resource_allocation'
-    methods='resource_allocation'
+    methods='preferential'
     Nodes=100
     #Graph's Parametres 
     P=0.3
     K=10
     M=7
-    g=json_graph.node_link_graph(Scale_free_networks(Nodes,M))
+    #g=json_graph.node_link_graph(Scale_free_networks(Nodes,M))
     #g=json_graph.node_link_graph(Small_World_networks(Nodes,K,P))
     #g=json_graph.node_link_graph(Random_networks(Nodes,P))
-    #g=json_graph.node_link_graph(facebook_graph())
+    g=json_graph.node_link_graph(facebook_graph())
     static="Nodes :{},Edegs:{}."
     print(static.format(Nodes,len(g.edges)))
     percentage=1 #1% of popularity" is infected 
@@ -992,7 +984,7 @@ if __name__ == '__main__':
     start_time = time.time()  
     Start(0,0,g,parameter,Stat,percentage) 
     end_time = time.time() 
-    print("Parallel xx time=", end_time - start_time)
+    print("time of execution=", end_time - start_time)
    
     #simul_beta(beta,1,1)
     #simul_delta(delta,7,5)
@@ -1005,18 +997,20 @@ if __name__ == '__main__':
     for each in Result:
         for link in each['new_link']:
             new_links.append(link)
-    pos_link,fals_link,new_link=filter_list(test_edges,new_links)
-    #rappl=Vrai_Pos/(Vrai_POS+Vrai)
+    print('calcul score............')
+    pos_link,neg_link,new_link=filter_list(test_edges,new_links)
+    #rappl=Vrai_Pos/(Vrai)
     rappel=len(pos_link)/len(test_edges)
     precision=len(pos_link)/len(new_links)
     f_score=2*rappel*precision/(rappel+precision)
     per=int(len(new_link)/len(test_edges_false)*100)
+    print('------------score----------')
     print("method:",methods)
     print("rappel:",rappel)
     print("precision",precision)
     print("f_score",f_score)
     print("percentage of new links added: %",per)
-    display_graph(3,g,pos_link,fals_link,new_link,methods)
+    #display_graph(3,g,pos_link,fals_link,new_link,methods)
 
-    plt.show()
+    #plt.show()
   
