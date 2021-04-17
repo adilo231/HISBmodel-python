@@ -1382,10 +1382,6 @@ if __name__ == '__main__':
                 g=json_graph.node_link_graph(graphe_TO_json(graph))
     else:
        g=json_graph.node_link_graph(facebook_graph())
-  
-   
-    #print(g.nodes[0])
-    #dynamique_graph(g,'adamic')
     
     G=[]
     #m=['B','BM','BCen','B'+Betas,BBD,'BBet','BCl','T','TM','TCen','T'+Betas,TBD,'TBet','TCl','NP']
