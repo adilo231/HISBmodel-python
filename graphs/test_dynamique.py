@@ -8,7 +8,7 @@ import time
 from matplotlib.ticker import NullFormatter  
 import multiprocessing 
 from multiprocessing import Manager
-import math
+
 
 from flask.json import jsonify
 import math
@@ -78,7 +78,7 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater):
       Nbr_Spreaders = 0
       L=len(ListInfectedNodes)
       #evolution networks
-      if stop==False:
+      if stop==False and dynamic== True:
           #list of links at t+1
           link_predict=dynamique_graph(Graph,method=methods)
           if time1>time_control:
@@ -93,7 +93,7 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater):
         RelativeTime = time - Graph.nodes[id]['Infetime'] 
         if (np.exp(-RelativeTime * Graph.nodes[id]['beta']) < 0.15) :
           ListInfectedNodes.pop(X)
-          Graph.nodes[id]['state'] = "infected"
+          Graph.nodes[id]['state'] = 'infected'
           
               
 
@@ -129,22 +129,22 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater):
                             Graph.nodes[each]['opinion'] =Graph.nodes[id]['opinion']
                             Graph.nodes[id]['state']='spreaders'
                             ListInfectedNodes.append(each)
-                            if (Graph.nodes[each]['opinion']=="denying"):
+                            if (Graph.nodes[each]['opinion']=='denying'):
                                 #negativ opinion
                                 Graph.nodes[each]['Accp_NegR']+=1
                                 OpinionDenying+=1
                             else:
                                  OpinionSupporting+=1
-                        elif (Graph.nodes[id]['opinion']=="denying"):
+                        elif (Graph.nodes[id]['opinion']=='denying'):
                             Graph.nodes[each]['Accp_NegR']+=1
                         
                         #updateOpinion(id)
-                if (Graph.nodes[id]['opinion']=="denying"):
+                if (Graph.nodes[id]['opinion']=='denying'):
                     OpinionDenying-=1
                 else:
                     OpinionSupporting-=1
                 Graph.nodes[id]['opinion']= updateOpinion(jug=Graph.nodes[id]['jug'],Accpet_NegR=Graph.nodes[id]['Accp_NegR'],Nbr_OF_R=Graph.nodes[id]['AccpR'])
-                if (Graph.nodes[id]['opinion']=="denying"):
+                if (Graph.nodes[id]['opinion']=='denying'):
                     OpinionDenying+=1
                 else:
                     OpinionSupporting+=1       
@@ -176,7 +176,9 @@ def Inclusive(min,max):
 def updateOpinion(jug,Accpet_NegR,Nbr_OF_R): 
   
    
-    opinion=jug*(Accpet_NegR / Nbr_OF_R)
+    opinion=jug
+    if (Accpet_NegR / Nbr_OF_R )>0:
+      opinion*=(Accpet_NegR / Nbr_OF_R)
     if(np.random.random_sample()<= opinion):
         return 'denying'
     else:
@@ -186,7 +188,7 @@ def updateOpinion(jug,Accpet_NegR,Nbr_OF_R):
 def graphe_TO_json(g):
     
     data =  json_graph.node_link_data(g,{"link": "links", "source": "source", "target": "target","weight":"weight"})
-    data['nodes'] = [ {"id": i,"state":"non_infected","opinion":"normal","beta":0,"omega":0,"delta":0,"jug":0,"Infetime":0,"AccpR":0,"SendR":0,"Accp_NegR":0,"value":0,"infected":'false',"degre":g.degree[i],"neighbors":[n for n in g.neighbors(i)]} for i in range(len(data['nodes'])) ]
+    data['nodes'] = [ {"id": i,"state":'non_infected',"opinion":'normal',"beta":0,"omega":0,"delta":0,"jug":0,"Infetime":0,"AccpR":0,"SendR":0,"Accp_NegR":0,"value":0,"infected":'false',"degre":g.degree[i],"neighbors":[n for n in g.neighbors(i)]} for i in range(len(data['nodes'])) ]
     data['links'] = [ {"source":u,"target":v,"weight":(g.degree[u]+g.degree[v])/2} for u,v in g.edges ]
     return data
 def geneList_Infectede(Listinfected,Listopinion,N,percentage):
@@ -210,7 +212,7 @@ def parameters(parameter,stepBeta=1,Beta=0.2,stepOmega=5.2,Omega=math.pi/3,stepD
 
 def Start(i,index,Graph,parameter,Stat,percentage):
     for each in range(len(Graph.nodes)):
-        Graph.nodes[each]['opinion']="normal"
+        Graph.nodes[each]['opinion']='normal'
         Graph.nodes[each]['Infetime']=0 
         Graph.nodes[each]['state']='non_infected'
         
@@ -960,8 +962,10 @@ if __name__ == '__main__':
 # How to read from a file. Note: if your egde weights are int, 
 # change float to int.
    #methods 'adamic','jaccard','preferential','resource_allocation'
-    methods='preferential'
-    Nodes=100
+    methods='jaccard'
+    #dynamic graph
+    dynamic=True
+    Nodes=4000
     #Graph's Parametres 
     P=0.3
     K=10
@@ -979,10 +983,13 @@ if __name__ == '__main__':
     juge=0.1
     delta=0
     Stat=[] 
+    Stat_Global=[]
     parameter=[]
     parameters(parameter)
     start_time = time.time()  
     Start(0,0,g,parameter,Stat,percentage) 
+    globalStat(Stat,Stat_Global,parameter)
+    Display(Stat_Global,1,"beta",Nodes)
     end_time = time.time() 
     print("time of execution=", end_time - start_time)
    
@@ -993,13 +1000,17 @@ if __name__ == '__main__':
     #plt.show()
     adj_train, train_edges,test_edges,test_edges_false=train_test_split
     #calcule score
+    
     new_links=[]
     for each in Result:
         for link in each['new_link']:
             new_links.append(link)
     print('calcul score............')
+    start_time = time.time() 
     pos_link,neg_link,new_link=filter_list(test_edges,new_links)
     #rappl=Vrai_Pos/(Vrai)
+    end_time = time.time() 
+    print("time of execution=", end_time - start_time)
     rappel=len(pos_link)/len(test_edges)
     precision=len(pos_link)/len(new_links)
     f_score=2*rappel*precision/(rappel+precision)

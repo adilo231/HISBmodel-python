@@ -16,6 +16,7 @@ from flask.json import jsonify
 import scipy.sparse as sp
 import matplotlib.patches as mpatches
 from operator import itemgetter
+import pickle
 Betweeness_Liste = list(np.loadtxt("graphs/result1.txt", comments="#", delimiter=",", unpack=False))
 Closeness_Liste=list(np.loadtxt("graphs/result2.txt", comments="#", delimiter=",", unpack=False))
 Betas='\u03B2'
@@ -30,8 +31,10 @@ INfec=[]
 time1=0
 Result=[]
 train_test_split=None
-
-def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater,K,Tdet,method):
+dynamic=True
+#methods 'adamic','jaccard','preferential','resource_allocation'
+methods='adamic'
+def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater,K,Tdet,method,dynamic=dynamic):
     
     #Opinion:normal/denying/supporting
     #State:non_infected/infected/spreaders 
@@ -68,8 +71,7 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater,K,Tdet,method):
     for each  in ListInfectedNodes:
         Graph.nodes[each]['Infetime']=0.125 
         Graph.nodes[each]['state']='spreaders'
-        Graph.nodes[each]['AccpR']+=1
-        
+        Graph.nodes[each]['AccpR']+=1        
         RumorPopularity+=Graph.nodes[each]['degree']
         Nbr_Infected+=1
         Nbr_nonInfected-=1
@@ -94,10 +96,11 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater,K,Tdet,method):
       RumorPopularity = 0
       Nbr_Spreaders = 0
       L=len(ListInfectedNodes)
+      setup+=1
       ##evolution networks
       if stop==False and dynamic== True:
           #list of links at t+1
-          link_predict=dynamique_graph(Graph,method=methods)
+          link_predict=dynamique_graph(Graph,methods)
           if time1>time_control:
             time_control=time1
           else:
@@ -183,6 +186,7 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater,K,Tdet,method):
         if (method=='B'):
             Random_Blocking_nodes(Graph, p)
             bl=len(blocked(Graph))
+            print('blocked:',bl)
         
             
         elif method=='T':
@@ -198,23 +202,27 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater,K,Tdet,method):
                 Graph.nodes[Liste_protector[i]]['Accp_NegR']+=1
                 ListInfectedNodes.append(Liste_protector[i])
             bl=len(Liste_protector)
+            print('Truth:',bl)
         elif method=='H':
             kb,kt=Hybrid_method(Graph,link_predict,p,time)
             #blocking nodes
+            print('hybrid kb',len(kb))
             for i in kb:
-                Graphe.nodes[i]['blocked']='True'        
+                Graph.nodes[i]['blocked']='True'        
             #truth COMPAGNE
+            print('hybrid kt',len(kt))
             for i in kt:
-                Graphe.nodes[i]['Protector']='True'
-                Graphe.nodes[i]['state']='infected'
+                Graph.nodes[i]['Protector']='True'
+                Graph.nodes[i]['state']='infected'
                 Graph.nodes[i]['Infetime'] =time
                 Graph.nodes[i]['opinion']=="denying"
                 Graph.nodes[i]['state']='spreaders'
                 Graph.nodes[i]['AccpR']+=1
                 Graph.nodes[i]['Accp_NegR']+=1
+                ListInfectedNodes.append(i)
             
             bl=len(kb)+len(kt)
-                  
+            print('hybrid',bl)    
           
           #print(method," At time:", time, "blocked nodes Nbr:", bl)
             
@@ -320,7 +328,7 @@ def Degree_MAX(G,K,nb):
 #-----------------------
 #start sumilation function
          
-def parameters(parameter,stepBeta=1,Beta=0.2,stepOmega=5.2,Omega=math.pi/3,stepDelta=0.65,Delta=math.pi/24,stepJug=0.6,Jug=0.1):
+def parameters(parameter,stepBeta=1,Beta=0.2,stepOmega=5.2,Omega=math.pi/3,stepDelta=0.65,Delta=math.pi/24,stepJug=0.85,Jug=0.1):
     Beta_max=Beta+stepBeta
     Omega_max=Omega +stepOmega
     Delta_max=Delta +stepDelta
@@ -375,14 +383,7 @@ def globalStat(S,Stat_Global,parameter,method,K):
     y4=[]
     y5=[]   
     Len=len(Stat)
-    ST=[]
-    for i in range(Len):
-        ST.append(Stat[i][max1-1]['Infected'])  
-    a=max(ST)
-    
-    Max.append(a)
-    b=min(ST)
-    Min.append(b)
+
     for i in range(max1):
         
         Infected=0
@@ -405,13 +406,12 @@ def globalStat(S,Stat_Global,parameter,method,K):
         y4.append(OpinionDenying/Len)
         y5.append(OpinionSupporting/Len)
      
-    INfec.append(y1)
-    Stat_Global.append({'Infected':y1,'Spreaders':y2,'RumorPopularity':y3,'OpinionDenying':y4,'OpinionSupporting':y5,'parameter':parameter,'max':max1,'method':method})       
-    #Number of nodes
+   
+    Stat_Global.append({'Infected':y1,'Spreaders':y2,'RumorPopularity':y3,'OpinionDenying':y4,'OpinionSupporting':y5,'parameter':parameter,'max':max1,'method':method})  
+
 def Display(Stat_Global,xx,title_fig,nb):
-   #print(Stat_Global)
-    Title=['B','BM','BCn','B'+Betas,'B'+Betas+'D','Btw','Bcl',
-       'T','TM','TCn','T'+Betas,'T'+Betas+'D','TBw','TCl','NP']
+       #print(Stat_Global)
+    Title=['NP','B','T','H']
     
     max=0
     Stat=[]
@@ -473,84 +473,86 @@ def Display(Stat_Global,xx,title_fig,nb):
     type=['x','*','p','8','h','H','.','+','4','1','2','3','o','v','<']
     
     #Infected
-    ''' plt.figure(num=xx)
-        plt.subplot()
-        #k="{}:{},{}]" 
-        k="{}" 
-        for infected,j in zip( Stat,range(len(Stat))):
-          quotients = [number /Nodes  for number in infected["Infected"]]
-          plt.plot(x, quotients,markersize=6,linewidth=1)
-          
-         # plt.plot(x,quotients,marker=type[j],markersize=7,linewidth=1,label=k.format(Title[j]))
-        plt.legend(fontsize=12) 
+    plt.figure(num=xx)
+    plt.subplot()
+    #k="{}:{},{}]" 
+    k="{}" 
+    for infected,j in zip( Stat,range(len(Stat))):
+        quotients = [number /Nodes  for number in infected["Infected"]]
+        plt.plot(x, quotients,markersize=6,linewidth=1,label=Title[j])
+        
+        # plt.plot(x,quotients,marker=type[j],markersize=7,linewidth=1,label=k.format(Title[j]))
+    plt.legend(fontsize=12) 
+
+    plt.xlabel('Temps',fontsize=10)
+    plt.ylabel('Nombre des individues')
+    plt.grid(True)
+    plt.title("Infected")
+    plt.savefig(title_fig+'infected.pdf',dpi=50)
+    # RumorPopularity
+    xx+=1
+    plt.figure(num=xx)
+    plt.subplot()
+    #k="{}:{},{}]" 
+    k="{}" 
+    for infected,j in zip( Stat,range(len(Stat))):
+        quotients = [number /Nodes  for number in infected["RumorPopularity"]]
+        plt.plot(x, quotients,markersize=6,linewidth=1,label=Title[j])
+        #plt.plot(x, quotients,marker=type[j],markersize=6,linewidth=1,label=k.format(Title[j]))
+    plt.legend(fontsize=12) 
+    plt.xlabel('Temps')
+    plt.ylabel('Nombre des individues')
+    plt.grid(True)
+    plt.title("popularity")
+    plt.savefig(title_fig+'RumorPopularity.pdf',dpi=20)
     
-        plt.xlabel('Temps',fontsize=10)
-        plt.ylabel('Nombre des individues')
-        plt.grid(True)
-        plt.savefig(title_fig+'infected.pdf',dpi=50)
-        # RumorPopularity
-        xx+=1
-        plt.figure(num=xx)
-        plt.subplot()
-        #k="{}:{},{}]" 
-        k="{}" 
-        for infected,j in zip( Stat,range(len(Stat))):
-          quotients = [number /Nodes  for number in infected["RumorPopularity"]]
-          plt.plot(x, quotients,markersize=6,linewidth=1)
-          #plt.plot(x, quotients,marker=type[j],markersize=6,linewidth=1,label=k.format(Title[j]))
-        plt.legend(fontsize=12) 
-        plt.xlabel('Temps')
-        plt.ylabel('Nombre des individues')
-        plt.grid(True)
-        plt.title("popularity")
-        plt.savefig(title_fig+'RumorPopularity.pdf',dpi=20)
-        
-        #Spreaders
-        xx+=1
-        plt.figure(num=xx)
-        plt.subplot()
-        #k="{}:{},{}]" 
-        k="{}" 
-        for infected ,j in zip( Stat,range(len(Stat))):
-          quotients = [number /Nodes  for number in infected["Spreaders"]]
-          plt.plot(x, quotients,markersize=6,linewidth=1)#,label=k.format(Title[j]))
-        
-         # plt.plot(x, quotients,marker=type[j],markersize=6,linewidth=1,label=k.format(Title[j]))
-        
-        plt.legend(fontsize=12)
-        plt.grid(True)
-        plt.title("Spreaders")
-        plt.xlabel('Temps')
-        plt.ylabel('Nombre des individues')
-        plt.savefig(title_fig+'Spreaders.pdf',dpi=20)
-       
+    #Spreaders
+    xx+=1
+    plt.figure(num=xx)
+    plt.subplot()
+    #k="{}:{},{}]" 
+    k="{}" 
+    for infected ,j in zip( Stat,range(len(Stat))):
+        quotients = [number /Nodes  for number in infected["Spreaders"]]
+        plt.plot(x, quotients,markersize=6,linewidth=1,label=Title[j])#,label=k.format(Title[j]))
     
+        # plt.plot(x, quotients,marker=type[j],markersize=6,linewidth=1,label=k.format(Title[j]))
+    
+    plt.legend(fontsize=12)
+    plt.grid(True)
+    plt.title("Spreaders")
+    plt.xlabel('Temps')
+    plt.ylabel('Nombre des individues')
+    plt.savefig(title_fig+'Spreaders.pdf',dpi=20)
+    
+
        # # Opinion
-       #  xx+=1
-       #  plt.figure(num=xx)
-       #  plt.subplot()
-       #  #k="{}:{},{}]" 
-       #  k="{}" 
-       #  for infected,j in zip( Stat,range(len(Stat))):
-       #    quotients = [number /Nodes  for number in infected["OpinionDenying"]]
-          
-       #    plt.plot(x, quotients,marker=type[j],markersize=6,linewidth=2,label=k.format(Title[j]))
-       #  plt.legend(fontsize=12) 
-       #  plt.grid(True)
-       #  plt.xlabel('Temps')
-       #  plt.ylabel('Nombre des individues')
-       #  plt.savefig(title_fig+'OpinionDenying.pdf',dpi=20)
-        
+    xx+=1
+    plt.figure(num=xx)
+    plt.subplot()
+    #k="{}:{},{}]" 
+    k="{}" 
+    for infected,j in zip( Stat,range(len(Stat))):
+       quotients = [number /Nodes  for number in infected["OpinionDenying"]]
+       plt.plot(x, quotients,marker=type[j],markersize=6,linewidth=2,label=k.format(Title[j]))
+    
+    plt.legend(fontsize=12) 
+    plt.grid(True)
+    plt.title("Denying")
+    plt.xlabel('Temps')
+    plt.ylabel('Nombre des individues')
+    plt.savefig(title_fig+'OpinionDenying.pdf',dpi=20)
+
 
         # Opinion
-        xx+=1
-        plt.figure(num=xx)
-        plt.subplot()
-        #k="{}:{},{}]" 
-        k="{}" 
-        for infected,j in zip( Stat,range(len(Stat))):
-          quotients = [number /Nodes  for number in infected["OpinionSupporting"]]
-      plt.plot(x, quotients,markersize=6,linewidth=1)
+    xx+=1
+    plt.figure(num=xx)
+    plt.subplot()
+    #k="{}:{},{}]" 
+    k="{}" 
+    for infected,j in zip( Stat,range(len(Stat))):
+        quotients = [number /Nodes  for number in infected["OpinionSupporting"]]
+        plt.plot(x, quotients,markersize=6,linewidth=1,label=k.format(Title[j]))
       
       #plt.plot(x, quotients,marker=type[j],markersize=6,linewidth=2,label=k.format(Title[j]))
    
@@ -560,110 +562,16 @@ def Display(Stat_Global,xx,title_fig,nb):
     plt.ylabel('Nombre des individues')
     plt.title("Supporting")
     plt.savefig(title_fig+'OpinionSupporting.pdf',dpi=20)
-    
-    # Format the minor tick labels of the y-axis into empty strings with
-    # `NullFormatter`, to avoid cumbering the axis with too many labels.'''
+
     xx+=1
     plt.figure(num=xx) 
     plt.subplot()      
-    #plt.plot(para,Infected,'bo')
-    er=np.subtract(Max,Min)
-    Moy=[]
-    for i in er:
-        Moy.append(i/(Nodes))
-    print(Moy)
-    plt.xticks(rotation=45)
-    plt.errorbar(para, Infected, yerr=Moy, fmt='o', color='black',
-            ecolor='red', elinewidth=2);
-
+    plt.plot(para,Infected,'bo')
     plt.grid(True)
-    plt.xlabel(Title)
-    plt.title("infected-Supporting")
+    plt.xlabel('method')
     plt.ylabel('Nombre des individues')
-    plt.savefig(title_fig+'nodes.pdf',dpi=20) 
+    plt.savefig(title_fig+'nodes.pdf',dpi=20)
     
-    k_s=[]
-    for i in K_seed:
-        k_s.append(i/Nodes)
-        
-    rows = k_s
-    INFCT=[]
-    Spred=[]
-    v=int(len(m)/2)
-    
-    Liste_t=[]
-    Liste_tsp=[]
-    print(K_seed)
-    for i in (range (len(K_seed))):
-        for j in  (range(v)):
-            Liste_t.append(round(Infected[j+v*i],3))
-    #    print('la taille de INFEct:',len(Liste_t))
-        INFCT.append(Liste_t)
-        '''with open('ik='+str(i)+'.csv', 'w') as f:
-      
-            # using csv.writer method from CSV package
-            write = csv.writer(f)
-            #write.writerow(columns1)
-            write.writerows(INFCT)'''
-    for i in (range (0,len(K_seed))):
-        for j in  (range(v,(2*v)+1)):
-            Liste_tsp.append(round(Infected[j+i*v],3))
-        #print('la taille de INFEct:',(Liste_tsp))
-        Spred.append(Liste_tsp)
-        ''' with open('Sk='+str(i)+'.csv', 'w') as f:
-      
-            # using csv.writer method from CSV package
-            write = csv.writer(f)
-            #write.writerow(columns1)
-            write.writerows(Spred)'''
-        
-   
-    '''np.savetxt("INFECTED.csv", 
-           INFCT,
-           delimiter =", ", 
-           fmt ='% s')
-    np.savetxt("SUPPORTING.csv", 
-           Spred,
-           delimiter =", ", 
-           fmt ='% s') '''
-    with open('G12.csv', 'w') as f:
-      
-        # using csv.writer method from CSV package
-        write = csv.writer(f)
-        #write.writerow(columns1)
-        write.writerows(INFCT)
-    
-    
-    with open('G21.csv', 'w') as f1:
-      
-        # using csv.writer method from CSV package
-        write1 = csv.writer(f1)
-        #write1.writerow(columns)
-        write1.writerows(Spred)
-    '''
-    
-    xx+=1
-    fig = plt.figure(xx)
-    #fig.subplots_adjust(left=0.2,top=0.8, wspace=1)
-    
-    #Table - Main table
-    #ax = plt.subplot2grid((4,3), (0,0), colspan=2, rowspan=2)
-            
-    plt.table(cellText=INFCT,rowLabels=rows,colLabels=columns1, loc="upper center")
-    
-    plt.axis("off")
-    plt.savefig('INFECTED.png')
-    plt.axis("tight")
-    
-    xx+=1
-    fig1 = plt.figure(xx)
-            
-    plt.table(cellText=Spred,rowLabels=rows,colLabels=columns, loc="upper center")
-    
-    plt.axis("off")
-    plt.savefig('INFECTED_WITH_SUPORTING_OP.png')
-    plt.axis("tight")'''
-
 def Simulation(index,graph,Stat_Global,percentage):
      Beta=0.2
      with Manager() as manager:
@@ -700,7 +608,7 @@ def simulation_strategy(x,K,Tdet,method,G):
                     print("Parallel xx time=", end_time - start_time)
                     globalStat(Stat,Stat_Global,parameter,met,Ki)
                 v+=1     
-        Display(Stat_Global,x,'NBLS',Nodes)
+        Display(Stat_Global,x,'dynamic',Nodes)
 
 
 #gene graph
@@ -755,36 +663,60 @@ def Hybrid_method(graph,link_predict,K_nodes,timeDetection):
         #reel neighbors of neighbors + predict neighbors of neighbors
         neighbors=tuple + neighbor_predict(graph,node,link_predict)
         for  id_neighbor,p in neighbors:
-            score_first_layer(graph,node,id_neighbor,timeDetection,proba=p) 
-    
+            score_second_layer(graph,node,id_neighbor,proba=p) 
     All_score=F_score_pos_neg(graph,nodes_atT)
 
     return selected_Kb_Kt_nodes(All_score,K_nodes)
 
 def F_score_pos_neg(graph , nodes):
     F_score=[]
+    pos=[]
+    neg=[]
+    sc_pos=[]
+    sc_neg=[]
     for each in nodes:
         Ro=graph.nodes[each]['omega']*graph.nodes[each]['delta']/graph.nodes[each]['beta']
         f_neg_TCS=graph.nodes[each]['f_score']*graph.nodes[each]['g_NEGscore']  #neg=jug
         f_pos_BNS=graph.nodes[each]['f_score']*graph.nodes[each]['g_POSscore']  #pos=1-jg
+        pos.append(Ro*f_pos_BNS)
+        neg.append(Ro*f_neg_TCS)
         if f_neg_TCS<f_pos_BNS:
            #positive score [supporting]
            #tupel=>score,id of node,strategy
            F_score.append((f_pos_BNS*Ro,each,'BNS'))
+           sc_pos.append(f_pos_BNS*Ro)
+           sc_neg.append(0.0)
         elif f_neg_TCS>f_pos_BNS:
             #negative score [denying]
             #tupel=>score,id of node,strategy
             F_score.append((f_neg_TCS*Ro,each,'TCS'))
-        elif graph.nodes[each]['jug']<0.6: #favorise TCS over BNS if f_neg_TCS==f_pos_BNS
+            sc_neg.append(f_neg_TCS*Ro)
+            sc_pos.append(0.0)
+        elif graph.nodes[each]['jug']<0.5: #favorise TCS over BNS if f_neg_TCS==f_pos_BNS
             #negative score [denying]
             #tupel=>score,id of node,strategy
             F_score.append((f_neg_TCS*Ro,each,'TCS'))
+            sc_neg.append(f_neg_TCS*Ro)
+            sc_pos.append(0.0)
        
         #else no thing to do
     
     #Sort the list in descending order max
-    F_score.sort(key=itemgetter(0),reverse=True)     
-   
+    F_score.sort(key=itemgetter(0),reverse=True)   
+    plt.figure(num=101)
+    plt.subplot()
+    #k="{}:{},{}]" 
+    plt.plot(range(len(neg)), neg,'y--',label="F-")
+    plt.plot(range(len(pos)), pos,'b--',label="F+")
+    #plt.plot(range(len(sc_pos)), sc_pos,'ro',label="F+")
+   # plt.plot(range(len(sc_pos)), sc_neg,'go',label="F-")
+    #plt.plot(range(len(sc)), sc,'go')
+    plt.legend(fontsize=12) 
+    plt.xlabel('number of nodes',fontsize=10)
+    plt.ylabel('score')
+    plt.grid(True)
+    plt.show()
+    
     return F_score
     
     #list_of_tuples.sort(key=itemgetter(0))
@@ -804,6 +736,7 @@ def score_first_layer(Graph,n_source,n_neighbor,timeDetection,proba=1):
     
     #score F , t+1
     score=Psend_u * Paccept_v * proba #p:probability of edges
+   
     
     Graph.nodes[n_neighbor]['f_score']+=score
 
@@ -813,7 +746,6 @@ def score_second_layer(graph,node,neighbor,proba=1):
     #jug of node w"neighbor of v" * probability of link* probability of accepted W_V
     neg_score=graph.nodes[neighbor]['jug']*proba*Paccept_w
     pos_score=(1-graph.nodes[neighbor]['jug'])*proba*Paccept_w
-
     graph.nodes[node]['g_POSscore']+=pos_score  #supporting
     graph.nodes[node]['g_NEGscore']+=neg_score  #denying
  
@@ -975,11 +907,11 @@ def MaxDegree_TRuth_comp(Graphe,K):
     if k > size :
        k=size-1
     for i in range(k):
-        s = d.index(max(d))
+        s = DNode.index(max(DNode))
         Graphe.nodes[nb[s]]['Protector']='True'
         Graphe.nodes[nb[s]]['state']='infected'
         nb.pop(s)
-        d.pop(s)
+        DNode.pop(s)
 def Centrality_TRuth_comp(Graphe,K):
     sp=[]
     search_spreaders(Graphe,sp)
@@ -1325,48 +1257,7 @@ def test(train_test_split,method='adamic',split=0.025):
                      print('end prediction')
                      break
     return result  
-      
-def display_graph(x,G,pos_link=None,fals_link=None,new_link=None,method="adamic"):
-    
-    plt.figure(num=x)
-    plt.suptitle(method)
-    pos = nx.spring_layout(G)  # positions for all nodes
-    # nodes
-    plt.subplot(121)
-    nx.draw_networkx_nodes(G, pos, nodelist=G.nodes, node_color="y",)
-    # edges
-    nx.draw_networkx_edges(G, pos, width=1.0)
-    plt.subplot(122)
-    nx.draw_networkx_nodes(G, pos, nodelist=G.nodes, node_color="y",)
-    if pos_link:
-       nx.draw_networkx_edges(G,pos,edgelist=pos_link,width=3,edge_color="g",)
-    if new_link :
-       nx.draw_networkx_edges(G,pos,edgelist=new_link,width=3,edge_color="b",)
-    if fals_link:
-       nx.draw_networkx_edges(G,pos,edgelist=fals_link,width=3,edge_color="r",)
-    
-    g_patch = mpatches.Patch(color='g', label='pos_link')
-    r_patch = mpatches.Patch(color='b', label='new_link')
-    b_patch = mpatches.Patch(color='r', label='fals_link')
-    plt.legend(handles=[g_patch,r_patch,b_patch])
-    
-def display(score):
-
-    for xx in range(len(score)):
-        plt.figure(num=xx)
-        plt.subplot()
-        x=range(len(score[xx]['roc']))
-        plt.plot(x, score[xx]['roc'],'bo',label='roc')
-        plt.plot(x, score[xx]['ap'],'ro',label='average_P')
-        plt.legend(fontsize=12) 
-        plt.grid(True)
-        plt.xlabel('score')
-        plt.ylabel('stpe')
-        plt.title(score[xx]['method'])
-        plt.savefig(score[xx]['method']+'.pdf',dpi=20)
-    
-    plt.show()    
-
+         
 def list_tuple(ebunch,matrix,tuple=True):
     List_triplet=[]
     if tuple:
@@ -1381,25 +1272,40 @@ def list_tuple(ebunch,matrix,tuple=True):
           pos.append(Tuple)
         return pos
    
-def dynamique_graph_Result(g,method):
+def test_split(g):
+
     global train_test_split
+    
     adj = nx.adjacency_matrix(g)
     train_test_split=mask_test_edges(adj,test_frac=0.2)
     adj_train, train_edges,test_edges,test_edges_false=train_test_split
     #display_graph(1,g,pos_link=list_tuple(train_edges,None,False),method='graphe init vs test graph')
     g.remove_edges_from(test_edges)
-   
+    graph=(g.edges,g.nodes)
     #display_graph(2,g,pos_link=list_tuple(test_edges,None,False),new_link=list_tuple(test_edges_false,None,False),method='test edges & new link ')
     #result 
-    return test(train_test_split,method)
+    return train_test_split,graph
       
 def dynamique_graph(g,method): 
     global time1   
-    global Result  
+    global Result 
     if time1==0:
-       Result=dynamique_graph_Result(g,methods)
-       print("edges:",len(g.edges),"time:",time1)
-       time1+=1
+        train_test_split = None
+        try: # If found existing train-test split, use that file
+           with open("result_fb-{}.pkl".format(method), 'rb') as f:
+               Result = pickle.load(f)
+               print("result method",method)
+        except: # Else, generate train-test split on the fly
+            with open("test-edges.pkl", 'rb') as f:
+               train_test_split = pickle.load(f)
+               print("load test",method)
+            print ('result dynamic graph...')
+            Result=test(train_test_split,method)
+            with open("result_fb-{}.pkl".format(method), "wb") as f:
+                pickle.dump(Result, f)
+        print("edges:",len(g.edges),"time:",time1)
+        time1+=1
+            
     else:
         if time1<len(Result):
             #edd edges t=t-1
@@ -1437,36 +1343,57 @@ if __name__ == '__main__':
 
 # How to read from a file. Note: if your egde weights are int, 
 # change float to int.
-    #methods 'adamic','jaccard','preferential','resource_allocation'
-    methods='jaccard'
+   
 
     #dynamic graph
-    dynamic=True
+   
 
     #Graph's Parametres 
     P=0.3
     K=100
-    M=3
+    M=10
     nbb=0
-    Nodes=7
-    g=json_graph.node_link_graph(Scale_free_networks(Nodes,M))
+    Nodes=1000
+    #g=json_graph.node_link_graph(Scale_free_networks(Nodes,M))
     #g=Scale_free_networks(Nodes,M)
     #g=json_graph.node_link_graph(Small_World_networks(Nodes,K,P))
     #g=json_graph.node_link_graph(Random_networks(Nodes,P))
-    #g=json_graph.node_link_graph(facebook_graph())
-    print(len(g.nodes),len(g.edges))
-    k,c=Hybrid_method(g,[(1,5,0.5)],5,0.125)
-    print(k,c)
-    for nodes in range(7):
-        print(nodes,g.nodes[nodes]['neighbors'])
-       
-    '''
+    graph=nx.Graph()
+    if dynamic:
+        try: 
+            with open("dynamic_fb.pkl",'rb') as f:
+                edges,nodes = pickle.load(f)
+                graph.add_nodes_from(nodes)
+                graph.add_edges_from(edges)
+                g=json_graph.node_link_graph(graphe_TO_json(graph))
+                print("load dynamic graph")
+        except: # Else, generate train-test split on the fly
+                print ('Generating dynamic graph...')
+                g=json_graph.node_link_graph(facebook_graph())
+                test_edges,Graph=test_split(g)
+                with open("tets-edges.pkl",'wb') as f:
+                    pickle.dump(test_edges, f)
+                with open("dynamic_fb.pkl",'wb') as f:
+                    pickle.dump(Graph, f)
+                    print("Save dynamic graph")
+
+                graph.add_nodes_from(Graph[1])
+                graph.add_edges_from(Graph[0])
+                g=json_graph.node_link_graph(graphe_TO_json(graph))
+    else:
+       g=json_graph.node_link_graph(facebook_graph())
+  
+   
+    #print(g.nodes[0])
+    #dynamique_graph(g,'adamic')
+    
     G=[]
-    m=['B','BM','BCen','B'+Betas,BBD,'BBet','BCl','T','TM','TCen','T'+Betas,TBD,'TBet','TCl','NP']
-    #m=['NP','B','NP']
+    #m=['B','BM','BCen','B'+Betas,BBD,'BBet','BCl','T','TM','TCen','T'+Betas,TBD,'TBet','TCl','NP']
+    m=['NP','B','T','H']
     
     Nodes=len(g.nodes)
     static="Nodes :{},Edegs:{}."
+    print(static.format(Nodes,len(g.edges)))
     percentage=5 #percentage% of popularity" is infected 
     NumOFsumi=1
     beta=0.2
@@ -1474,40 +1401,40 @@ if __name__ == '__main__':
     juge=0.1
     delta=0
     K_seed=[]
-    q=[1,2,3,4]
+    q=[2]
     for i in q:
         K_seed.append(int(Nodes*0.05*i))
     for i in range(len(m)*len(q)):
         G.append(g)
-    print(K_seed)
+
     Tdet=2
 
     simulation_strategy(1,K_seed, Tdet,m,G)
     plt.show()
     
-    adj_train, train_edges,test_edges,test_edges_false=train_test_split
-    #calcule score
+    # adj_train, train_edges,test_edges,test_edges_false=train_test_split
+    # #calcule score
     
-    new_links=[]
-    for each in Result:
-        for link in each['new_link']:
-            new_links.append(link)
-    print('calcul score............')
-    start_time = time.time() 
-    pos_link,neg_link,new_link=filter_list(test_edges,new_links)
-    #rappl=Vrai_Pos/(Vrai)
-    end_time = time.time() 
-    print("time of execution=", end_time - start_time)
-    rappel=len(pos_link)/len(test_edges)
-    precision=len(pos_link)/len(new_links)
-    f_score=2*rappel*precision/(rappel+precision)
-    per=int(len(new_link)/len(test_edges_false)*100)
-    print('------------score----------')
-    print("method:",methods)
-    print("rappel:",rappel)
-    print("precision",precision)
-    print("f_score",f_score)
-    print("percentage of new links added: %",per)
+    # new_links=[]
+    # for each in Result:
+    #     for link in each['new_link']:
+    #         new_links.append(link)
+    # print('calcul score............')
+    # start_time = time.time() 
+    # pos_link,neg_link,new_link=filter_list(test_edges,new_links)
+    # #rappl=Vrai_Pos/(Vrai)
+    # end_time = time.time() 
+    # print("time of execution=", end_time - start_time)
+    # rappel=len(pos_link)/len(test_edges)
+    # precision=len(pos_link)/len(new_links)
+    # f_score=2*rappel*precision/(rappel+precision)
+    # per=int(len(new_link)/len(test_edges_false)*100)
+    # print('------------score----------')
+    # print("method:",methods)
+    # print("rappel:",rappel)
+    # print("precision",precision)
+    # print("f_score",f_score)
+    # print("percentage of new links added: %",per)
     #display_graph(3,g,pos_link,fals_link,new_link,methods)
 
     #plt.show()'''

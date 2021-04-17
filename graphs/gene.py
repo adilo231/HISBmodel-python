@@ -1,6 +1,8 @@
 from networkx.readwrite import json_graph
 import networkx as nx
 import numpy as np
+import math
+from operator import itemgetter
 #-----------------------------------------
   # g = nx.barabasi_albert_graph(N, M)
   # g= nx.watts_strogatz_graph(N,K,P)
@@ -60,8 +62,19 @@ def graphe_TO_json(g):
     data['links'] = [ {"source":u,"target":v,"weight":(g.degree[u]+g.degree[v])/2} for u,v in g.edges ]
     return data
 
+def p(lis):
+    print(lis)
+list_of_tuples=[(24,5,'TCS'),(25,2,'BNS')]
+print(list_of_tuples.sort(key=lambda x:x[0]))
+p(list_of_tuples)
 
-
+list_of_tuples.sort(key=itemgetter(0),reverse=True)
+p(list_of_tuples)
+for u,v,s in list_of_tuples:
+    if s=='BNS':
+        print('cc')
+    elif s=='TCS':
+        print('zz')
 #n= 300           # Number of nodes in graph
 #alpha=0.41       # Probability for adding a new node connected to an existing node chosen randomly according to the in-degree distribution.
 #beta =0.54       # Probability for adding an edge between two existing nodes. One existing node is chosen randomly according the in-degree distribution and the other chosen randomly according to the out-degree distribution.
