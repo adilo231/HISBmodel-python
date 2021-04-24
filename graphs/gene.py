@@ -18,7 +18,7 @@ def Random_networks ( N=300 ,P=0.3):
    
     
     g = nx.gnp_random_graph(N, P)  
-    return graphe_TO_json(g)
+    return g
 
 def Scale_free_networks (N=300,M=10):
     #Barabasi_albert graph
@@ -62,19 +62,13 @@ def graphe_TO_json(g):
     data['links'] = [ {"source":u,"target":v,"weight":(g.degree[u]+g.degree[v])/2} for u,v in g.edges ]
     return data
 
-def p(lis):
-    print(lis)
-list_of_tuples=[(24,5,'TCS'),(25,2,'BNS')]
-print(list_of_tuples.sort(key=lambda x:x[0]))
-p(list_of_tuples)
-
-list_of_tuples.sort(key=itemgetter(0),reverse=True)
-p(list_of_tuples)
-for u,v,s in list_of_tuples:
-    if s=='BNS':
-        print('cc')
-    elif s=='TCS':
-        print('zz')
+g=Random_networks(10,0.5)
+t=1
+k=0
+degree_sequence = sorted([d for n, d in g.degree()], reverse=True)
+dmax = max(degree_sequence)
+dmin=min(degree_sequence)
+print(dmax,dmin)
 #n= 300           # Number of nodes in graph
 #alpha=0.41       # Probability for adding a new node connected to an existing node chosen randomly according to the in-degree distribution.
 #beta =0.54       # Probability for adding an edge between two existing nodes. One existing node is chosen randomly according the in-degree distribution and the other chosen randomly according to the out-degree distribution.
