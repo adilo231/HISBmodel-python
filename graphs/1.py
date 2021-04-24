@@ -640,7 +640,7 @@ def simulation_strategy(x,K,Tdet,method,G):
                         globalJug(jug_g,v)
                     v+=1 
                    
-        Display(Stat_Global,x,'dynamic',Nodes)
+        Display(Stat_Global,x,'FB',Nodes)
 def globalJug(jug,x):
     moy=len(jug)
     Xjug=[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1]
