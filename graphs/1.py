@@ -201,10 +201,11 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater,K,Tdet,method,dy
             for node in kt:
                 Graph.nodes[node]['Protector']='True'
                 Graph.nodes[node]['Infetime'] =time
-                Graph.nodes[node]['opinion']=='denying'
+                Graph.nodes[node]['opinion']='denying'
                 Graph.nodes[node]['state']='spreaders'
                 Graph.nodes[node]['AccpR']+=1
                 Graph.nodes[node]['Accp_NegR']+=1
+                
                 ListInfectedNodes.append(node)
                 OpinionDenying+=1 
                 Nbr_Infected+=1
@@ -222,7 +223,7 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater,K,Tdet,method,dy
             for i in kt:
                 Graph.nodes[i]['Protector']='True'
                 Graph.nodes[i]['Infetime'] =time
-                Graph.nodes[i]['opinion']=='denying'
+                Graph.nodes[i]['opinion']='denying'
                 Graph.nodes[i]['state']='spreaders'
                 Graph.nodes[i]['AccpR']+=1
                 Graph.nodes[i]['Accp_NegR']+=1
@@ -242,7 +243,7 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater,K,Tdet,method,dy
             for i in kt:
                 Graph.nodes[i]['Protector']='True'
                 Graph.nodes[i]['Infetime'] =time
-                Graph.nodes[i]['opinion']=='denying'
+                Graph.nodes[i]['opinion']='denying'
                 Graph.nodes[i]['state']='spreaders'
                 Graph.nodes[i]['AccpR']+=1
                 Graph.nodes[i]['Accp_NegR']+=1
@@ -261,7 +262,7 @@ def HISBmodel (Graph,Seed_Set,Opinion_Set,Statistical,paramater,K,Tdet,method,dy
             
               
       time += 0.25; 
-
+    print('infected',Nbr_Infected)
 #HISBMODEl function  
 def InitParameters(Graph,parameters):
     #Individual back ground knowledge:Beta
@@ -284,14 +285,15 @@ def individual_attraction(RelativeTime,beta,omega,delta):
 def Accepted_rumor(degreeNoede_target,degreeNoede_Spreader):
     return degreeNoede_target /(degreeNoede_target+degreeNoede_Spreader) * 0.3
 def updateOpinion(jug,Accpet_NegR,Nbr_OF_R,Role):
-
+    if Role=='true':
+        return 'denying'
    
     opinion=jug
     if Accpet_NegR != 0:
         opinion*=(Accpet_NegR / Nbr_OF_R)
    
     
-    if(np.random.random_sample()<= opinion):
+    if(np.random.random_sample()< opinion):
         return 'denying'
     else:
         return 'supporting'
@@ -360,7 +362,7 @@ def Degree_MAX(G,K,nb):
 #-----------------------
 #start sumilation function
          
-def parameters(parameter,stepBeta=1,Beta=0.4,stepOmega=5.2,Omega=math.pi/3,stepDelta=0.65,Delta=math.pi/24,stepJug=0.8,Jug=0.1):
+def parameters(parameter,stepBeta=1,Beta=0.4,stepOmega=5.2,Omega=math.pi/3,stepDelta=0.8,Delta=math.pi/24,stepJug=0.8,Jug=0.1):
     Beta_max=Beta+stepBeta
     Omega_max=Omega +stepOmega
     Delta_max=Delta +stepDelta
@@ -386,8 +388,8 @@ def Start(time_det,Graph,parameter,Stat,percentage,K,method,jug_g):
     #X% of Popularity is infected 
     geneList_Infectede(ListInfected,Listopinion,len(Graph.nodes),percentage)
     HISBmodel(Graph,ListInfected,Listopinion,Statistical,parameter,K,time_det,method)  
-    send,accp=G_jug(Graph)
-    jug_g.append({'send':send,'accp':accp})
+    accpN,accp=G_jug(Graph)
+    jug_g.append({'accpN':accpN,'accpP':accp})
     Stat.append(Statistical)    
     
 def globalStat(S,Stat_Global,parameter,method,K):
@@ -458,15 +460,7 @@ def Display(Stat_Global,xx,title_fig,nb):
     for each in Stat_Global:
         L=each['max']
         #print(L,each['Infected'])
-        
         para.append(each['method'])
-        metho=str(each['method'])
-        if metho.startswith('T'):
-            Infected.append(each['OpinionSupporting'][L-1]/Nodes)
-        else:
-            Infected.append(each['Infected'][L-1]/Nodes)
-                
-        
         Stat.append(each)
         if(L>max):
             max=L
@@ -484,10 +478,11 @@ def Display(Stat_Global,xx,title_fig,nb):
                 each['OpinionDenying'].append(OpinionDenying)
                 each['OpinionSupporting'].append(OpinionSupporting)
                 each['RumorPopularity'].append(RumorPopularity)
-    print(max)
+    
+    
     pro=int(max/50)
-    print(pro)
-    for each in Stat:
+    if pro>0:
+        for each in Stat:
             for j in reversed(range(max)):
                 d=j%pro
                 if(d!=0):
@@ -496,14 +491,19 @@ def Display(Stat_Global,xx,title_fig,nb):
                     each['OpinionDenying'].pop(j)
                     each['OpinionSupporting'].pop(j)
                     each['RumorPopularity'].pop(j)
-
-    for each in Stat:
+        '''
+        for each in Stat:
             for j in reversed(range(10)):
                     each['Infected'].pop(40+j)
                     each['Spreaders'].pop(40+j)
                     each['OpinionDenying'].pop(40+j)
                     each['OpinionSupporting'].pop(40+j)
                     each['RumorPopularity'].pop(40+j)
+                    '''
+    else:
+        pro=1
+
+    
     x = range(0,len(Stat[0]['Infected']))
     x=np.array(x)*pro
     
@@ -517,8 +517,8 @@ def Display(Stat_Global,xx,title_fig,nb):
             #k="{}:{},{}]" 
             k="{}" 
             for k,j in zip( range(i*6,(i+1)*6),range(6)):
-                #quotients = [number /Nodes  for number in Stat[k]["Infected"]]
-                plt.plot(x, Stat[k]["Infected"],markersize=6,linewidth=1,label=Title[j])
+                quotients = [number /Nodes  for number in Stat[k]["Infected"]]
+                plt.plot(x, quotients,markersize=6,linewidth=1,label=Title[j])
                 
                 # plt.plot(x,quotients,marker=type[j],markersize=7,linewidth=1,label=k.format(Title[j]))
             plt.legend(fontsize=12) 
@@ -552,8 +552,8 @@ def Display(Stat_Global,xx,title_fig,nb):
             #k="{}:{},{}]" 
             k="{}" 
             for k,j in zip( range(i*6,(i+1)*6),range(6)):
-                #quotients = [number /Nodes  for number in Stat[k]["Spreaders"]]
-                plt.plot(x, Stat[k]["Spreaders"],markersize=6,linewidth=1,label=Title[j])
+                quotients = [number /Nodes  for number in Stat[k]["Spreaders"]]
+                plt.plot(x, quotients,markersize=6,linewidth=1,label=Title[j])
                 # plt.plot(x, quotients,marker=type[j],markersize=6,linewidth=1,label=k.format(Title[j]))
             
             plt.legend(fontsize=12)
@@ -571,8 +571,47 @@ def Display(Stat_Global,xx,title_fig,nb):
             #k="{}:{},{}]" 
             k="{}" 
             for k,j in zip( range(i*6,(i+1)*6),range(6)):
-                #quotients = [number /Nodes  for number in Stat[k]["OpinionDenying"]]
-                plt.plot(x, Stat[k]["OpinionDenying"],markersize=6,linewidth=1,label=Title[j])          
+                moy=[number  for number in Stat[k]["Infected"]]
+                l=len(moy)
+                quotients = [number /moy[l-1]  for number in Stat[k]["OpinionDenying"]]
+                plt.plot(x, quotients,markersize=6,linewidth=1,label=Title[j])          
+            plt.legend(fontsize=12) 
+            plt.grid(True)
+            plt.title("Denying%-"+str(t)+'-'+str(i))
+            plt.xlabel('Temps')
+            plt.ylabel('Nombre des individues')
+            plt.savefig(title_fig+str(t)+'-'+str(i)+'%OpinionDenying.pdf',dpi=20)
+
+
+                # Opinion
+            xx+=1
+            plt.figure(num=xx)
+            plt.subplot()
+            #k="{}:{},{}]" 
+            k="{}" 
+            for k,j in zip( range(i*6,(i+1)*6),range(6)):
+                moy=[number  for number in Stat[k]["Infected"]]
+                l=len(moy)
+                quotients = [number /moy[l-1]  for number in Stat[k]["OpinionSupporting"]]
+                plt.plot(x, quotients,markersize=6,linewidth=1,label=Title[j])
+            
+            #plt.plot(x, quotients,marker=type[j],markersize=6,linewidth=2,label=k.format(Title[j]))
+        
+            plt.legend(fontsize=12) 
+            plt.grid(True)
+            plt.xlabel('Temps')
+            plt.ylabel('Nombre des individues')
+            plt.title("Supporting%-"+str(t)+'-'+str(i))
+            plt.savefig(title_fig+str(t)+'-'+str(i)+'%OpinionSupporting.pdf',dpi=20)
+            
+            xx+=1
+            plt.figure(num=xx)
+            plt.subplot()
+            #k="{}:{},{}]" 
+            k="{}" 
+            for k,j in zip( range(i*6,(i+1)*6),range(6)):
+                quotients = [number /Nodes  for number in Stat[k]["OpinionDenying"]]
+                plt.plot(x, quotients,markersize=6,linewidth=1,label=Title[j])          
             plt.legend(fontsize=12) 
             plt.grid(True)
             plt.title("Denying-"+str(t)+'-'+str(i))
@@ -588,8 +627,8 @@ def Display(Stat_Global,xx,title_fig,nb):
             #k="{}:{},{}]" 
             k="{}" 
             for k,j in zip( range(i*6,(i+1)*6),range(6)):
-                #quotients = [number /Nodes  for number in Stat[k]["OpinionSupporting"]]
-                plt.plot(x, Stat[k]["OpinionSupporting"],markersize=6,linewidth=1,label=Title[j])
+                quotients = [number /Nodes  for number in Stat[k]["OpinionSupporting"]]
+                plt.plot(x, quotients,markersize=6,linewidth=1,label=Title[j])
             
             #plt.plot(x, quotients,marker=type[j],markersize=6,linewidth=2,label=k.format(Title[j]))
         
@@ -599,7 +638,6 @@ def Display(Stat_Global,xx,title_fig,nb):
             plt.ylabel('Nombre des individues')
             plt.title("Supporting-"+str(t)+'-'+str(i))
             plt.savefig(title_fig+str(t)+'-'+str(i)+'OpinionSupporting.pdf',dpi=20)
-
             xx+=1
        
 def Simulation(index,graph,Stat_Global,percentage):
@@ -637,30 +675,30 @@ def simulation_strategy(x,K,Tdet,method,G):
                         end_time = time.time() 
                         print("Parallel xx time=", end_time - start_time)
                         globalStat(Stat,Stat_Global,parameter,met,Ki)
-                        globalJug(jug_g,v)
+                        #globalJug(jug_g,v)
                     v+=1 
                    
         Display(Stat_Global,x,'FB',Nodes)
 def globalJug(jug,x):
     moy=len(jug)
     Xjug=[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1]
-    send=[0,0,0,0,0,0,0,0,0,0]
-    accp=[0,0,0,0,0,0,0,0,0,0]
+    accpN=[0,0,0,0,0,0,0,0,0,0]
+    accpP=[0,0,0,0,0,0,0,0,0,0]
     for r in jug:
       for j in range(10):
-        send[j]+=r['send'][j]
-        accp[j]+=r['accp'][j]
+        accpN[j]+=r['accpN'][j]
+        accpP[j]+=r['accpP'][j]
     for j in range(10):
-        send[j]/=moy
-        accp[j]/=moy 
+        accpN[j]/=moy
+        accpP[j]/=moy 
 
-    plt.figure(num=100)
+    plt.figure(num=100+x)
     plt.subplot()
     #k="{}:{},{}]" 
     k="{}" 
     #quotients = [number /Nodes  for number in Stat[k]["Infected"]]
-    plt.plot(Xjug,send,markersize=6,linewidth=1,label='send')
-    plt.plot(Xjug,accp,'r--',markersize=6,linewidth=1,label='accp')
+    plt.plot(Xjug,accpN,markersize=6,linewidth=1,label='accpN')
+    plt.plot(Xjug,accpP,'r--',markersize=6,linewidth=1,label='accpP')
         
         # plt.plot(x,quotients,marker=type[j],markersize=7,linewidth=1,label=k.format(Title[j]))
     plt.legend(fontsize=12) 
@@ -672,43 +710,43 @@ def globalJug(jug,x):
     plt.savefig(str(x)+'jug-send-accp.pdf',dpi=50)
 
 def G_jug(graph):
-    Send=[0,0,0,0,0,0,0,0,0,0]
-    Accp=[0,0,0,0,0,0,0,0,0,0]
+    AccpN=[0,0,0,0,0,0,0,0,0,0]
+    AccpP=[0,0,0,0,0,0,0,0,0,0]
     for node in graph.nodes:
         i= graph.nodes[node]['jug']
-        send= graph.nodes[node]['SendR']
-        accp= graph.nodes[node]['AccpR']
+        accpN= graph.nodes[node]['Accp_NegR']
+        accp= graph.nodes[node]['AccpR']-accpN
         if i<0.1:
-          Send[0]+=send
-          Accp[0]+=accp
+          AccpN[0]+=accpN
+          AccpP[0]+=accp
         elif i<0.2:
-            Send[1]+=send
-            Accp[1]+=accp
+            AccpN[1]+=accpN
+            AccpP[1]+=accp
         elif i<0.3:
-            Send[2]+=send
-            Accp[2]+=accp
+            AccpN[2]+=accpN
+            AccpP[2]+=accp
         elif i<0.4:
-            Send[3]+=send
-            Accp[3]+=accp
+            AccpN[3]+=accpN
+            AccpP[3]+=accp
         elif i<0.5:
-            Send[4]+=send
-            Accp[4]+=accp
+            AccpN[4]+=accpN
+            AccpP[4]+=accp
         elif i<0.6:
-            Send[5]+=send
-            Accp[6]+=accp
+            AccpN[5]+=accpN
+            AccpP[6]+=accp
         elif i<0.7:
-           Send[6]+=send
-           Accp[6]+=accp
+           AccpN[6]+=accpN
+           AccpP[6]+=accp
         elif i<0.8:
-            Send[7]+=send
-            Accp[7]+=accp
+            AccpN[7]+=accpN
+            AccpP[7]+=accp
         elif i<0.9:
-            Send[8]+=send
-            Accp[8]+=accp
+            AccpN[8]+=accpN
+            AccpP[8]+=accp
         else:
-            Send[9]+=send
-            Accp[9]+=accp
-    return Send,Accp
+            AccpN[9]+=accpN
+            AccpP[9]+=accp
+    return AccpN,AccpP
 #gene graph
 def Random_networks ( N=300 ,P=0.3):
     # Erdős-Rényi graph
@@ -777,43 +815,31 @@ def F_score_pos_neg(graph , nodes):
     neg=[]
     
     for each in nodes:
+        Betweeness=Betweeness_Liste[each]
         Ro=graph.nodes[each]['omega']*graph.nodes[each]['delta']/graph.nodes[each]['beta']
-        f_neg_TCS=graph.nodes[each]['f_score']*graph.nodes[each]['g_NEGscore']  #neg=jug
-        f_pos_BNS=graph.nodes[each]['f_score']*graph.nodes[each]['g_POSscore']  #pos=1-jg
-        pos.append(Ro*f_pos_BNS)
-        neg.append(Ro*f_neg_TCS)
+        f_neg_TCS=graph.nodes[each]['g_NEGscore']  #neg=jug
+        f_pos_BNS=graph.nodes[each]['g_POSscore']  #pos=1-jg
         if f_neg_TCS<f_pos_BNS:
            #positive score [supporting]
            #tupel=>score,id of node,strategy
-           F_score.append((f_pos_BNS*Ro,each,'BNS'))
+           f_pos_BNS*=graph.nodes[each]['f_score']*Betweeness*Ro
+           F_score.append((f_pos_BNS,each,'BNS'))
         elif f_neg_TCS>f_pos_BNS:
             #negative score [denying]
             #tupel=>score,id of node,strategy
-            F_score.append((f_neg_TCS*Ro,each,'TCS'))   
+            f_neg_TCS*=graph.nodes[each]['f_score']*Betweeness*Ro
+            F_score.append((f_neg_TCS,each,'TCS'))   
         elif graph.nodes[each]['jug']<0.5: #favorise TCS over BNS if f_neg_TCS==f_pos_BNS
             #negative score [denying]
             #tupel=>score,id of node,strategy
-            F_score.append((f_neg_TCS*Ro,each,'BNS'))
+            f_neg_TCS*=graph.nodes[each]['f_score']*Betweeness*Ro
+            F_score.append((f_neg_TCS,each,'BNS'))
        
         #else no thing to do
     
     #Sort the list in descending order max
     F_score.sort(key=itemgetter(0),reverse=True) 
-    '''
-    plt.figure(num=101)
-    plt.subplot()
-    #k="{}:{},{}]" 
-    plt.plot(range(len(neg)), neg,'y--',label="F-")
-    plt.plot(range(len(pos)), pos,'b--',label="F+")
-    #plt.plot(range(len(sc_pos)), sc_pos,'ro',label="F+")
-   # plt.plot(range(len(sc_pos)), sc_neg,'go',label="F-")
-    #plt.plot(range(len(sc)), sc,'go')
-    plt.legend(fontsize=12) 
-    plt.xlabel('number of nodes',fontsize=10)
-    plt.ylabel('score')
-    plt.grid(True)
-    plt.show()
-    '''
+   
     return F_score
     
     #list_of_tuples.sort(key=itemgetter(0))
@@ -996,7 +1022,8 @@ def F_score_neg(graph,nodes):
         f_neg_TCS=graph.nodes[each]['f_score']*graph.nodes[each]['g_NEGscore']  #neg=jug
         score=Ro*f_neg_TCS
         neg.append((score,each))
-        neg.sort(key=itemgetter(0),reverse=True) 
+    
+    neg.sort(key=itemgetter(0),reverse=True) 
     return neg
 def truth_compagne(graph,K_nodes,timeDetection):
     kt=[]
@@ -1551,20 +1578,18 @@ if __name__ == '__main__':
     static="Nodes :{},Edegs:{}."
     print(static.format(Nodes,len(g.edges)))
     percentage=5 #percentage% of popularity" is infected 
-    NumOFsumi=10
+    NumOFsumi=5
     beta=0.2
     omega=0
     juge=0.1
     delta=0
     K_seed=[]
-    q=[1,2,3,4]
+    q=[0.5,1,2,3]
     Tdet=[2,3,4]
     for i in q:
         K_seed.append(int(Nodes*0.05*i))
     for i in range(len(m)*len(q)*3):
         G.append(g)
-
-    
 
     simulation_strategy(1,K_seed, Tdet,m,G)
 
